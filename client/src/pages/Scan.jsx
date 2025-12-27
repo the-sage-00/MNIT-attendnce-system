@@ -54,7 +54,23 @@ const Scan = () => {
             await scanner.stop();
             scannerRef.current = null;
 
-            // Parse QR data: sessionId|qrToken
+            // Try to parse as URL first
+            try {
+                const url = new URL(data);
+                const params = new URLSearchParams(url.search);
+                const sessionId = params.get('session');
+                const qrToken = params.get('token');
+
+                if (sessionId) {
+                    // Navigate to attend page with the full URL parameters
+                    navigate(`/attend?session=${sessionId}${qrToken ? `&token=${qrToken}` : ''}${params.get('static') ? '&static=true' : ''}`);
+                    return;
+                }
+            } catch (e) {
+                // Not a URL, try pipe format
+            }
+
+            // Fallback: Parse QR data as sessionId|qrToken format
             const [sessionId, qrToken] = data.split('|');
 
             if (sessionId && qrToken) {
