@@ -11,6 +11,7 @@ const Dashboard = () => {
     const navigate = useNavigate();
 
     const [sessions, setSessions] = useState([]);
+    const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -29,8 +30,20 @@ const Dashboard = () => {
     const [createError, setCreateError] = useState('');
 
     useEffect(() => {
+        fetchCourses();
         fetchSessions();
     }, []);
+
+    const fetchCourses = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/courses`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setCourses(res.data.data || []);
+        } catch (error) {
+            console.error('Failed to fetch courses:', error);
+        }
+    };
 
     const fetchSessions = async () => {
         try {
@@ -135,6 +148,32 @@ const Dashboard = () => {
                             <p>Active Sessions</p>
                         </div>
                     </div>
+                </div>
+
+                {/* Your Courses Section */}
+                <div className="courses-section">
+                    <div className="section-header">
+                        <h2>📚 Your Courses</h2>
+                        <Link to="/admin/courses" className="btn btn-sm btn-secondary">View All</Link>
+                    </div>
+                    {courses.length === 0 ? (
+                        <div className="empty-state-small">
+                            <p>No courses yet. <Link to="/admin/courses">Create your first course</Link></p>
+                        </div>
+                    ) : (
+                        <div className="courses-grid">
+                            {courses.slice(0, 4).map(course => (
+                                <Link key={course._id} to={`/admin/courses/${course._id}`} className="course-card">
+                                    <div className="course-badge">{course.courseCode}</div>
+                                    <h3>{course.courseName}</h3>
+                                    <div className="course-meta">
+                                        <span>📅 {course.totalSessions} sessions</span>
+                                        {course.activeSession && <span className="live-badge">🔴 LIVE</span>}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="sessions-section">
