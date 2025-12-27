@@ -246,6 +246,28 @@ const Attend = () => {
                             </div>
                         </div>
 
+                        {/* Debug: Show coordinates for troubleshooting */}
+                        <div className="location-debug" style={{
+                            background: 'var(--bg-surface)',
+                            padding: 'var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            marginBottom: 'var(--space-4)',
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-muted)'
+                        }}>
+                            <p style={{ marginBottom: '4px' }}>
+                                📍 <strong>Your Location:</strong> {location?.latitude?.toFixed(6)}, {location?.longitude?.toFixed(6)}
+                            </p>
+                            <a
+                                href={`https://www.google.com/maps?q=${location?.latitude},${location?.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--primary)', textDecoration: 'underline' }}
+                            >
+                                🗺️ View on Google Maps
+                            </a>
+                        </div>
+
                         <form onSubmit={handleSubmit} className="attend-form">
                             <div className="form-group">
                                 <label className="form-label">
