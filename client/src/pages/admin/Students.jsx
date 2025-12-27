@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
+import AdminNavbar from '../../components/AdminNavbar';
 import './Students.css';
 
 const Students = () => {
@@ -131,20 +132,18 @@ const Students = () => {
 
     return (
         <div className="students-page">
-            <header className="students-header">
-                <div className="header-left">
-                    <Link to="/admin/dashboard" className="back-link">← Back</Link>
-                    <h1>👥 Student List</h1>
-                    <p>Manage your student database</p>
-                </div>
-                <div className="header-right">
+            <AdminNavbar />
+
+            <main className="students-content">
+                <div className="page-header">
+                    <div className="header-titles">
+                        <h1>👥 Student List</h1>
+                        <p>Manage your student database</p>
+                    </div>
                     <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>
                         📤 Upload Students
                     </button>
                 </div>
-            </header>
-
-            <main className="students-content">
                 {/* Filters */}
                 <div className="filters-bar">
                     <input

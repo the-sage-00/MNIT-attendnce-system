@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_URL from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
+import AdminNavbar from '../../components/AdminNavbar';
 import './Courses.css';
 
 const Courses = () => {
@@ -119,100 +120,96 @@ const Courses = () => {
 
     return (
         <div className="courses-page">
-            <header className="courses-header">
-                <div className="header-content">
-                    <h1>📚 My Courses</h1>
-                    <p>Manage your courses and sessions</p>
-                </div>
-                <div className="header-actions">
+            <AdminNavbar />
+
+            <div className="courses-content">
+                <div className="page-header">
+                    <div className="header-titles">
+                        <h1>📚 My Courses</h1>
+                        <p>Manage your courses and sessions</p>
+                    </div>
                     <button
                         className="btn btn-primary"
                         onClick={() => setShowModal(true)}
                     >
                         + New Course
                     </button>
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => navigate('/admin/dashboard')}
-                    >
-                        Back to Dashboard
-                    </button>
                 </div>
-            </header>
 
-            {error && (
-                <div className="alert alert-error" style={{ margin: '0 var(--space-6) var(--space-4)' }}>
-                    {error}
-                    <button onClick={() => setError('')} style={{ marginLeft: 'auto' }}>×</button>
-                </div>
-            )}
-
-            <div className="courses-grid">
-                {courses.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-icon">📚</div>
-                        <h3>No courses yet</h3>
-                        <p>Create your first course to start taking attendance</p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => setShowModal(true)}
-                        >
-                            Create Course
-                        </button>
+                {error && (
+                    <div className="alert alert-error" style={{ margin: '0 var(--space-6) var(--space-4)' }}>
+                        {error}
+                        <button onClick={() => setError('')} style={{ marginLeft: 'auto' }}>×</button>
                     </div>
-                ) : (
-                    courses.map(course => (
-                        <div key={course._id} className={`course-card ${course.activeSession ? 'active' : ''}`}>
-                            <div className="course-header">
-                                <div className="course-code">{course.courseCode}</div>
-                                {course.activeSession && (
-                                    <span className="active-badge">🔴 LIVE</span>
+                )}
+
+                <div className="courses-grid">
+                    {courses.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-icon">📚</div>
+                            <h3>No courses yet</h3>
+                            <p>Create your first course to start taking attendance</p>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => setShowModal(true)}
+                            >
+                                Create Course
+                            </button>
+                        </div>
+                    ) : (
+                        courses.map(course => (
+                            <div key={course._id} className={`course-card ${course.activeSession ? 'active' : ''}`}>
+                                <div className="course-header">
+                                    <div className="course-code">{course.courseCode}</div>
+                                    {course.activeSession && (
+                                        <span className="active-badge">🔴 LIVE</span>
+                                    )}
+                                </div>
+                                <h3 className="course-name">{course.courseName}</h3>
+                                {course.semester && (
+                                    <p className="course-semester">{course.semester}</p>
                                 )}
-                            </div>
-                            <h3 className="course-name">{course.courseName}</h3>
-                            {course.semester && (
-                                <p className="course-semester">{course.semester}</p>
-                            )}
-                            <div className="course-stats">
-                                <div className="stat">
-                                    <span className="stat-value">{course.totalSessions}</span>
-                                    <span className="stat-label">Sessions</span>
+                                <div className="course-stats">
+                                    <div className="stat">
+                                        <span className="stat-value">{course.totalSessions}</span>
+                                        <span className="stat-label">Sessions</span>
+                                    </div>
+                                </div>
+                                <div className="course-actions">
+                                    {course.activeSession ? (
+                                        <>
+                                            <button
+                                                className="btn btn-danger"
+                                                onClick={() => handleStopSession(course)}
+                                            >
+                                                ⏹ Stop Session
+                                            </button>
+                                            <button
+                                                className="btn btn-secondary"
+                                                onClick={() => navigate(`/admin/session/${course.activeSession._id || course.activeSession}`)}
+                                            >
+                                                📺 View Live
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            className="btn btn-success"
+                                            onClick={() => handleStartSession(course._id)}
+                                        >
+                                            ▶ Start Session
+                                        </button>
+                                    )}
+                                    <button
+                                        className="btn btn-ghost"
+                                        onClick={() => navigate(`/admin/courses/${course._id}`)}
+                                    >
+                                        📊 Details
+                                    </button>
                                 </div>
                             </div>
-                            <div className="course-actions">
-                                {course.activeSession ? (
-                                    <>
-                                        <button
-                                            className="btn btn-danger"
-                                            onClick={() => handleStopSession(course)}
-                                        >
-                                            ⏹ Stop Session
-                                        </button>
-                                        <button
-                                            className="btn btn-secondary"
-                                            onClick={() => navigate(`/admin/session/${course.activeSession._id || course.activeSession}`)}
-                                        >
-                                            📺 View Live
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        className="btn btn-success"
-                                        onClick={() => handleStartSession(course._id)}
-                                    >
-                                        ▶ Start Session
-                                    </button>
-                                )}
-                                <button
-                                    className="btn btn-ghost"
-                                    onClick={() => navigate(`/admin/courses/${course._id}`)}
-                                >
-                                    📊 Details
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                )}
+                        ))
+                    )}
+                </div>
             </div>
 
             {/* Create Course Modal */}

@@ -854,6 +854,38 @@ select.form-input {
   width: 100%;
 }
 
+/* Shared Page Header Styles */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  padding: 0 var(--space-1);
+}
+
+.header-titles h1 {
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.header-titles p {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.dashboard-content,
+.courses-content,
+.students-content,
+.course-detail-content {
+  padding: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 .h-full {
   height: 100%;
 }

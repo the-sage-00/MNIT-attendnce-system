@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
+import AdminNavbar from '../../components/AdminNavbar';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -287,23 +288,26 @@ const SessionDetail = () => {
 
     return (
         <div className="session-detail-page">
-            <header className="detail-header">
-                <div className="header-nav">
-                    <Link to="/admin/dashboard" className="back-link">← Back to Dashboard</Link>
-                </div>
-                <div className="header-content">
-                    <div className="header-info">
+            <AdminNavbar />
+
+            <div className="session-detail-content">
+                <header className="page-header">
+                    <div className="header-titles">
                         <h1>{session.courseName}</h1>
                         <p>{session.description || 'No description'}</p>
-                        <div className="session-meta">
+                        <div className="session-meta" style={{ marginTop: 'var(--space-2)' }}>
                             <span>📍 {session.radius}m radius</span>
-                            <span>⏰ {new Date(session.startTime).toLocaleString()}</span>
-                            <span className={`status-badge ${session.isActive ? 'active' : 'inactive'}`}>
-                                {session.isActive ? 'Active' : 'Inactive'}
-                            </span>
+                            <span style={{ marginLeft: 'var(--space-3)' }}>⏰ {new Date(session.startTime).toLocaleString()}</span>
                         </div>
                     </div>
                     <div className="header-actions">
+                        <button
+                            className={`btn ${session.isActive ? 'btn-danger' : 'btn-success'}`}
+                            onClick={toggleActive}
+                            disabled={updating}
+                        >
+                            {updating ? 'Updating...' : (session.isActive ? '🔴 Stop Session' : '▶ Resume Session')}
+                        </button>
                         {!showQR ? (
                             <button className="btn btn-primary" onClick={startQRDisplay}>
                                 📱 Show QR Code
@@ -317,7 +321,7 @@ const SessionDetail = () => {
                             📥 Export CSV
                         </button>
                     </div>
-                </div>
+                </header>
 
                 {/* Session Controls */}
                 <div className="session-controls">
@@ -365,39 +369,41 @@ const SessionDetail = () => {
                 </div>
             </header>
 
-            {showQR && (
-                <div className="qr-display animate-fade-in">
-                    <div className="qr-container">
-                        <h3>Scan to Mark Attendance</h3>
-                        {(isStaticQR ? staticQrCode : qrCode) ? (
-                            <img src={isStaticQR ? staticQrCode : qrCode} alt="QR Code" className="qr-image" />
-                        ) : (
-                            <div className="spinner"></div>
-                        )}
-                        <p className="qr-note">
-                            {isStaticQR
-                                ? '⚡ Static QR - Does not expire (for printing/sharing)'
-                                : '🔄 Dynamic QR - Refreshes every 30 seconds (more secure)'
-                            }
-                        </p>
-                        <div className="qr-actions">
-                            <button
-                                className={`btn ${isStaticQR ? 'btn-primary' : 'btn-secondary'}`}
-                                onClick={toggleQRMode}
-                            >
-                                {isStaticQR ? '🔄 Switch to Dynamic' : '📌 Switch to Static'}
-                            </button>
-                            <button
-                                className="btn btn-success"
-                                onClick={downloadQR}
-                                disabled={!(isStaticQR ? staticQrCode : qrCode)}
-                            >
-                                📥 Download QR
-                            </button>
+            {
+                showQR && (
+                    <div className="qr-display animate-fade-in">
+                        <div className="qr-container">
+                            <h3>Scan to Mark Attendance</h3>
+                            {(isStaticQR ? staticQrCode : qrCode) ? (
+                                <img src={isStaticQR ? staticQrCode : qrCode} alt="QR Code" className="qr-image" />
+                            ) : (
+                                <div className="spinner"></div>
+                            )}
+                            <p className="qr-note">
+                                {isStaticQR
+                                    ? '⚡ Static QR - Does not expire (for printing/sharing)'
+                                    : '🔄 Dynamic QR - Refreshes every 30 seconds (more secure)'
+                                }
+                            </p>
+                            <div className="qr-actions">
+                                <button
+                                    className={`btn ${isStaticQR ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={toggleQRMode}
+                                >
+                                    {isStaticQR ? '🔄 Switch to Dynamic' : '📌 Switch to Static'}
+                                </button>
+                                <button
+                                    className="btn btn-success"
+                                    onClick={downloadQR}
+                                    disabled={!(isStaticQR ? staticQrCode : qrCode)}
+                                >
+                                    📥 Download QR
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <main className="detail-content">
                 <div className="stats-row">
@@ -467,9 +473,7 @@ const SessionDetail = () => {
                         )}
                     </div>
                 </div>
-            </main>
-        </div>
-    );
+                );
 };
 
-export default SessionDetail;
+                export default SessionDetail;
