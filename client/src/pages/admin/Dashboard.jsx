@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import AdminNavbar from '../../components/AdminNavbar';
+import ThemeToggle from '../../components/ThemeToggle';
 import API_URL from '../../config/api';
 import './Dashboard.css';
 
 const Dashboard = () => {
-    const { admin, token } = useAuth();
+    const { admin, token, logout } = useAuth();
     const navigate = useNavigate();
 
     const [sessions, setSessions] = useState([]);
@@ -103,21 +103,36 @@ const Dashboard = () => {
         }
     };
 
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
+
     return (
         <div className="dashboard-page">
-            <AdminNavbar />
-
-            <main className="dashboard-content">
-                <div className="page-header">
-                    <div className="header-titles">
-                        <h1>Dashboard</h1>
-                        <p>Welcome back, {admin?.name}</p>
-                    </div>
-                    <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            <header className="dashboard-header">
+                <div className="header-left">
+                    <h1>📊 Dashboard</h1>
+                    <p>Welcome, {admin?.name}</p>
+                </div>
+                <div className="header-right">
+                    <ThemeToggle />
+                    <Link to="/admin/courses" className="btn btn-primary">
+                        📚 Courses
+                    </Link>
+                    <Link to="/admin/students" className="btn btn-secondary">
+                        👥 Students
+                    </Link>
+                    <button className="btn btn-secondary" onClick={() => setShowCreateModal(true)}>
                         + Quick Session
                     </button>
+                    <button className="btn btn-secondary" onClick={handleLogout}>
+                        Logout
+                    </button>
                 </div>
+            </header>
 
+            <main className="dashboard-content">
                 <div className="stats-grid">
                     <div className="stat-card">
                         <div className="stat-icon">📚</div>

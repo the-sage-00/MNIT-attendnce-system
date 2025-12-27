@@ -4,7 +4,36 @@
 }
 
 /* Header */
-/* Styles moved to global index.css */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-5) var(--space-8);
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(12px);
+}
+
+.header-left h1 {
+    font-size: var(--text-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.header-left p {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+}
+
+.header-right {
+    display: flex;
+    gap: var(--space-3);
+}
 
 /* Content */
 .dashboard-content {
