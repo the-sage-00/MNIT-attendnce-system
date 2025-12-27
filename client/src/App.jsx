@@ -16,6 +16,8 @@ import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import SessionDetail from './pages/admin/SessionDetail';
 import Students from './pages/admin/Students';
+import Courses from './pages/admin/Courses';
+import CourseDetail from './pages/admin/CourseDetail';
 
 // Student pages
 import StudentLogin from './pages/student/StudentLogin';
@@ -69,6 +71,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/courses"
+                element={
+                  <ProtectedRoute>
+                    <Courses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/courses/:id"
+                element={
+                  <ProtectedRoute>
+                    <CourseDetail />
                   </ProtectedRoute>
                 }
               />

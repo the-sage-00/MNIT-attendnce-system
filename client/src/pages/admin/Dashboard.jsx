@@ -104,11 +104,14 @@ const Dashboard = () => {
                 </div>
                 <div className="header-right">
                     <ThemeToggle />
+                    <Link to="/admin/courses" className="btn btn-primary">
+                        📚 Courses
+                    </Link>
                     <Link to="/admin/students" className="btn btn-secondary">
                         👥 Students
                     </Link>
-                    <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-                        + New Session
+                    <button className="btn btn-secondary" onClick={() => setShowCreateModal(true)}>
+                        + Quick Session
                     </button>
                     <button className="btn btn-secondary" onClick={handleLogout}>
                         Logout
