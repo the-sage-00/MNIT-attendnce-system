@@ -154,7 +154,8 @@ const Attend = () => {
                 studentId,
                 latitude: location.latitude,
                 longitude: location.longitude,
-                deviceFingerprint
+                deviceFingerprint,
+                isStatic  // Send flag so backend skips token validation
             });
 
             // Navigate to success page with result

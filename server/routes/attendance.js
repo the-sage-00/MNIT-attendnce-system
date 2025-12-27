@@ -58,7 +58,8 @@ router.post('/', async (req, res) => {
             studentId,
             latitude,
             longitude,
-            deviceFingerprint
+            deviceFingerprint,
+            isStatic  // New: for static QR codes
         } = req.body;
 
         // Find session
@@ -78,8 +79,8 @@ router.post('/', async (req, res) => {
             });
         }
 
-        // Validate QR token
-        if (!session.isQRTokenValid(qrToken)) {
+        // Validate QR token (skip for static QR codes)
+        if (!isStatic && !session.isQRTokenValid(qrToken)) {
             return res.status(400).json({
                 success: false,
                 error: 'QR code has expired. Please scan the new QR code.'
