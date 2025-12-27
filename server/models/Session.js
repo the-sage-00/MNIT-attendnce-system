@@ -8,6 +8,17 @@ const sessionSchema = new mongoose.Schema({
         unique: true,
         default: () => crypto.randomBytes(8).toString('hex')
     },
+    // Reference to parent course
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        default: null  // Optional for backwards compatibility
+    },
+    // Session number within the course (auto-incremented)
+    sessionNumber: {
+        type: Number,
+        default: null
+    },
     courseName: {
         type: String,
         required: [true, 'Please add a course name']

@@ -1,5 +1,5 @@
 import express from 'express';
-import { Session, Attendance, Student } from '../models/index.js';
+import { Session, Attendance, Student, Course, CourseEnrollment } from '../models/index.js';
 import { protect } from '../middleware/auth.js';
 import { calculateDistance, determineStatus } from '../utils/geolocation.js';
 
@@ -143,11 +143,39 @@ router.post('/', async (req, res) => {
             }
         }
 
+        // Check course enrollment (if session has a course)
+        let isEnrolled = false;
+        let enrollment = null;
+        if (session.course) {
+            enrollment = await CourseEnrollment.findOne({
+                course: session.course,
+                studentId: studentId.toUpperCase()
+            });
+            isEnrolled = !!enrollment;
+
+            // Auto-enroll if not enrolled (optional - can be toggled)
+            if (!enrollment) {
+                enrollment = await CourseEnrollment.create({
+                    course: session.course,
+                    studentId: studentId.toUpperCase(),
+                    studentName
+                });
+                isEnrolled = true;
+            }
+
+            // Update enrollment attendance count
+            if (enrollment) {
+                await CourseEnrollment.findByIdAndUpdate(enrollment._id, {
+                    $inc: { attendanceCount: 1 }
+                });
+            }
+        }
+
         // Create attendance record
         const attendance = await Attendance.create({
             session: sessionId,
             studentName,
-            studentId,
+            studentId: studentId.toUpperCase(),  // Normalize to uppercase
             latitude,
             longitude,
             distance: Math.round(distance),
@@ -161,6 +189,8 @@ router.post('/', async (req, res) => {
             data: {
                 status,
                 distance: Math.round(distance),
+                isEnrolled,
+                isNewEnrollment: enrollment && !enrollment.createdAt,
                 message: status === 'INVALID'
                     ? `You are ${Math.round(distance)}m away. Must be within ${session.radius}m.`
                     : status === 'LATE'

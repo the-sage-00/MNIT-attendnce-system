@@ -13,6 +13,7 @@ import sessionRoutes from './routes/sessions.js';
 import attendanceRoutes from './routes/attendance.js';
 import studentRoutes from './routes/students.js';
 import studentAuthRoutes from './routes/studentAuth.js';
+import courseRoutes from './routes/courses.js';
 
 // Connect to database
 connectDB();
@@ -29,6 +30,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/student-auth', studentAuthRoutes);
+app.use('/api/courses', courseRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
