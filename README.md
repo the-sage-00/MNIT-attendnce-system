@@ -22,7 +22,7 @@
 
 ## What Can You Do?
 
-### �‍🏫 If You're a Professor
+### 👨‍🏫 If You're a Professor
 - Create courses and organize them by semester
 - Start a class session with one click - a QR code appears instantly
 - Watch attendance roll in live as students scan
@@ -31,14 +31,20 @@
 - Create assignments with due dates
 - View detailed attendance reports
 
-### �‍🎓 If You're a Student  
+### 👨‍🎓 If You're a Student  
 - Scan QR code to mark attendance (takes 3 seconds!)
 - See all your enrolled courses in one place
 - Track your attendance percentage per course
 - Access materials shared by professors
 - View upcoming assignments
 
-### � How Attendance Works
+### 📱 Install as App (PWA)
+- **Works on any device** - Install ClassCheck on your phone's home screen
+- **Android:** Open the app → tap menu (⋮) → "Install app" or "Add to Home Screen"
+- **iOS:** Open in Safari → tap Share → "Add to Home Screen"
+- **Feels like a native app** - Full screen, fast, and works offline!
+
+### 🔒 How Attendance Works
 - **Location Check:** Makes sure you're actually in class
 - **Device Tracking:** Prevents marking from multiple devices
 - **Time Window:** Can't mark attendance after class ends
