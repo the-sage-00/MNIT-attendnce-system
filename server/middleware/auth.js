@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/index.js';
-import { Admin } from '../models/index.js';
+import { User } from '../models/index.js';
 
 // Protect routes - verify JWT token
 export const protect = async (req, res, next) => {
@@ -19,12 +19,13 @@ export const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, config.jwtSecret);
-        req.admin = await Admin.findById(decoded.id);
 
-        if (!req.admin) {
+        req.user = await User.findById(decoded.id);
+
+        if (!req.user) {
             return res.status(401).json({
                 success: false,
-                error: 'Admin not found'
+                error: 'User not found'
             });
         }
 
@@ -37,9 +38,15 @@ export const protect = async (req, res, next) => {
     }
 };
 
-// Generate JWT token
-export const generateToken = (id) => {
-    return jwt.sign({ id }, config.jwtSecret, {
-        expiresIn: config.jwtExpire
-    });
+// Grant access to specific roles
+export const authorize = (...roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: `User role ${req.user.role} is not authorized to access this route`
+            });
+        }
+        next();
+    };
 };

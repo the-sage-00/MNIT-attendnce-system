@@ -1,11 +1,11 @@
-export { default as Admin } from './Admin.js';
-export { default as Session } from './Session.js';
-export { default as Attendance } from './Attendance.js';
-export { default as Student } from './Student.js';
-export { default as StudentUser } from './StudentUser.js';
-export { default as Course } from './Course.js';
-export { default as CourseEnrollment } from './CourseEnrollment.js';
-export { default as Material } from './Material.js';
-export { default as Announcement } from './Announcement.js';
-export { default as Assignment } from './Assignment.js';
-export { default as Submission } from './Submission.js';
+import User from './User.js';
+import Course from './Course.js';
+import Session from './Session.js';
+import Attendance from './Attendance.js';
+
+export {
+    User,
+    Course,
+    Session,
+    Attendance
+};

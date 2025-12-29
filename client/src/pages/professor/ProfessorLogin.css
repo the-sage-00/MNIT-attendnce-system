@@ -1,0 +1,59 @@
+.professor-login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 20px;
+}
+
+.professor-login-container .login-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    padding: 3rem;
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.professor-login-container .login-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.professor-login-container h1 {
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.professor-login-container>.login-card>p {
+    color: #888;
+    margin-bottom: 2rem;
+}
+
+.professor-login-container .login-actions {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.professor-login-container .login-footer {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.professor-login-container .login-links {
+    margin-top: 1rem;
+}
+
+.professor-login-container .login-links a {
+    color: #4285f4;
+    text-decoration: none;
+}
+
+.professor-login-container .login-links a:hover {
+    text-decoration: underline;
+}

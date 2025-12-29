@@ -6,52 +6,48 @@ const attendanceSchema = new mongoose.Schema({
         ref: 'Session',
         required: true
     },
+    student: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    // Redundant but useful for fast display without population
     studentName: {
         type: String,
-        required: [true, 'Please add student name']
-    },
-    studentId: {
-        type: String,
-        required: [true, 'Please add student ID']
-    },
-    // Student's GPS coordinates
-    latitude: {
-        type: Number,
-        required: [true, 'Please add latitude']
-    },
-    longitude: {
-        type: Number,
-        required: [true, 'Please add longitude']
-    },
-    // Calculated distance from center
-    distance: {
-        type: Number,
         required: true
     },
-    // Device fingerprint for anti-cheating
-    deviceFingerprint: {
+    rollNo: {
         type: String,
-        default: ''
+        required: true
     },
-    // Attendance status
+    // Verification Data
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
     status: {
         type: String,
-        enum: ['PRESENT', 'LATE', 'INVALID'],
+        enum: ['PRESENT', 'LATE', 'REJECTED'],
+        default: 'PRESENT'
+    },
+    // Location Data at time of scan
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    distance: { type: Number, required: true },
+
+    // Anticheat
+    deviceFingerprint: {
+        type: String,
         required: true
     },
-    // IP address (optional, for campus verification)
-    ipAddress: {
-        type: String,
-        default: ''
-    }
+    ipAddress: String
 }, {
-    timestamps: true // Auto adds createdAt (timestamp)
+    timestamps: true
 });
 
-// Prevent duplicate attendance from same student in same session
-attendanceSchema.index({ session: 1, studentId: 1 }, { unique: true });
-
-// Prevent same device submitting multiple times per session
-attendanceSchema.index({ session: 1, deviceFingerprint: 1 });
+// One attendance per student per session
+attendanceSchema.index({ session: 1, student: 1 }, { unique: true });
+// One attendance per device per session
+attendanceSchema.index({ session: 1, deviceFingerprint: 1 }, { unique: true });
 
 export default mongoose.model('Attendance', attendanceSchema);

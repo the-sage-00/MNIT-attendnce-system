@@ -29,7 +29,7 @@ const Scan = () => {
                 { facingMode: 'environment' },
                 {
                     fps: 10,
-                    qrbox: { width: 220, height: 220 },
+                    qrbox: { width: 250, height: 250 },
                     aspectRatio: 1
                 },
                 (decodedText) => {
@@ -54,29 +54,46 @@ const Scan = () => {
             await scanner.stop();
             scannerRef.current = null;
 
-            // Try to parse as URL first
-            try {
-                const url = new URL(data);
-                const params = new URLSearchParams(url.search);
-                const sessionId = params.get('session');
-                const qrToken = params.get('token');
+            console.log('Scanned Data:', data);
 
-                if (sessionId) {
-                    // Navigate to attend page with the full URL parameters
-                    navigate(`/attend?session=${sessionId}${qrToken ? `&token=${qrToken}` : ''}${params.get('static') ? '&static=true' : ''}`);
-                    return;
+            let sessionId, token;
+
+            // 1. Try JSON Format (New Standard)
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.s && parsed.t) {
+                    sessionId = parsed.s;
+                    token = parsed.t;
                 }
             } catch (e) {
-                // Not a URL, try pipe format
+                // Not JSON
             }
 
-            // Fallback: Parse QR data as sessionId|qrToken format
-            const [sessionId, qrToken] = data.split('|');
+            // 2. Try URL Format (Fallback)
+            if (!sessionId) {
+                try {
+                    const url = new URL(data);
+                    const params = new URLSearchParams(url.search);
+                    sessionId = params.get('session');
+                    token = params.get('token');
+                } catch (e) {
+                    // Not URL
+                }
+            }
 
-            if (sessionId && qrToken) {
-                navigate(`/attend?session=${sessionId}&token=${qrToken}`);
+            // 3. Try Pipe Format (Legacy)
+            if (!sessionId) {
+                const parts = data.split('|');
+                if (parts.length >= 2) {
+                    sessionId = parts[0];
+                    token = parts[1];
+                }
+            }
+
+            if (sessionId && token) {
+                navigate(`/student/attend?session=${sessionId}&token=${token}`);
             } else {
-                setError('Invalid QR code format');
+                setError('Invalid QR code format. Please scan a valid Class QR.');
                 setScanning(false);
             }
         } catch (err) {
@@ -89,16 +106,8 @@ const Scan = () => {
         <div className="scan-page">
             <div className="scan-container animate-fade-in-up">
                 <div className="scan-header">
-                    <h1>
-                        <span className="scan-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" />
-                                <path d="M7 7h.01M7 12h.01M7 17h.01M12 7h.01M12 12h.01M12 17h.01M17 7h.01M17 12h.01M17 17h.01" />
-                            </svg>
-                        </span>
-                        Scan QR Code
-                    </h1>
-                    <p>Point your camera at the attendance QR code</p>
+                    <h1>Scan QR Code</h1>
+                    <p>Point your camera at the Professor's Screen</p>
                 </div>
 
                 <div className="scanner-wrapper">
@@ -106,39 +115,17 @@ const Scan = () => {
 
                     {!scanning && (
                         <div className="scanner-placeholder">
-                            <div className="camera-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                                    <circle cx="12" cy="13" r="4" />
-                                </svg>
-                            </div>
+                            <div className="camera-icon">📷</div>
                             <p>Camera not active</p>
-                        </div>
-                    )}
-
-                    {scanning && (
-                        <div className="scanner-frame">
-                            <div className="corner top-left"></div>
-                            <div className="corner top-right"></div>
-                            <div className="corner bottom-left"></div>
-                            <div className="corner bottom-right"></div>
                         </div>
                     )}
                 </div>
 
-                {error && (
-                    <div className="alert alert-error" style={{ marginBottom: 'var(--space-4)' }}>
-                        {error}
-                    </div>
-                )}
+                {error && <div className="alert alert-error">{error}</div>}
 
                 <div className="scan-actions">
                     {!scanning ? (
                         <button className="btn btn-primary" onClick={startScanner}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                                <circle cx="12" cy="13" r="4" />
-                            </svg>
                             Start Camera
                         </button>
                     ) : (
@@ -152,13 +139,6 @@ const Scan = () => {
                         </button>
                     )}
                 </div>
-
-                {error && error.includes('permission') && (
-                    <div className="permission-help">
-                        <h4>Camera Access Required</h4>
-                        <p>Please enable camera permissions in your browser settings to scan QR codes.</p>
-                    </div>
-                )}
             </div>
         </div>
     );

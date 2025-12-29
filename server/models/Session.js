@@ -3,87 +3,66 @@ import crypto from 'crypto';
 
 const sessionSchema = new mongoose.Schema({
     sessionId: {
-        type: String,
+        type: String, // Public usage
         required: true,
         unique: true,
         default: () => crypto.randomBytes(8).toString('hex')
     },
-    // Reference to parent course
     course: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Course',
-        default: null  // Optional for backwards compatibility
+        required: true
     },
-    // Session number within the course (auto-incremented)
-    sessionNumber: {
-        type: Number,
-        default: null
+    professor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
-    courseName: {
-        type: String,
-        required: [true, 'Please add a course name']
+    // Captured Data
+    startTime: {
+        type: Date,
+        required: true
     },
-    description: {
-        type: String,
-        default: ''
+    endTime: {
+        type: Date,
+        required: true
     },
-    // Classroom center coordinates
+    // Geolocation constraints
     centerLat: {
         type: Number,
-        required: [true, 'Please add center latitude']
+        required: true
     },
     centerLng: {
         type: Number,
-        required: [true, 'Please add center longitude']
+        required: true
     },
-    // Radius in meters (default 50m)
     radius: {
         type: Number,
         default: 50
     },
-    // Dynamic QR token (rotates every 30 seconds)
+    // QR Security
     qrToken: {
         type: String,
         default: () => crypto.randomBytes(16).toString('hex')
     },
     qrExpiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 30000) // 30 seconds
-    },
-    // Session timing
-    startTime: {
-        type: Date,
-        required: [true, 'Please add start time']
-    },
-    endTime: {
-        type: Date,
-        required: [true, 'Please add end time']
-    },
-    lateThreshold: {
-        type: Number,
-        default: 15 // Minutes after start to be marked LATE
+        default: () => new Date(Date.now() + 30000)
     },
     isActive: {
         type: Boolean,
         default: true
-    },
-    createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Admin',
-        required: true
     }
 }, {
     timestamps: true
 });
 
-// Generate new QR token
 sessionSchema.methods.refreshQRToken = function () {
     this.qrToken = crypto.randomBytes(16).toString('hex');
-    this.qrExpiresAt = new Date(Date.now() + 30000); // 30 seconds
+    this.qrExpiresAt = new Date(Date.now() + 30000);
     return this.save();
 };
 
-// Check if QR token is valid
 sessionSchema.methods.isQRTokenValid = function (token) {
     return this.qrToken === token && new Date() < this.qrExpiresAt;
 };

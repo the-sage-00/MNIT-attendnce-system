@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStudentAuth } from '../../context/StudentAuthContext';
+import GoogleLoginButton from '../../components/GoogleLoginButton';
 import './StudentLogin.css';
 
 const StudentLogin = () => {
@@ -16,7 +17,7 @@ const StudentLogin = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { login, register } = useStudentAuth();
+    const { login, register, googleLogin } = useStudentAuth();
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -47,6 +48,24 @@ const StudentLogin = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Google OAuth handlers
+    const handleGoogleSuccess = async (credential) => {
+        setError('');
+        setLoading(true);
+        try {
+            await googleLogin(credential);
+            navigate('/student/dashboard');
+        } catch (err) {
+            setError(err.response?.data?.error || 'Google authentication failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleError = (errorMessage) => {
+        setError(errorMessage);
     };
 
     return (
@@ -193,6 +212,15 @@ const StudentLogin = () => {
                             )}
                         </button>
                     </form>
+
+                    {/* Google Sign-In - Only show for login, not registration */}
+                    {!isRegister && (
+                        <GoogleLoginButton
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                            disabled={loading}
+                        />
+                    )}
 
                     <div className="login-footer">
                         <p>

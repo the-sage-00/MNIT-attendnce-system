@@ -1,131 +1,202 @@
-# QR Attendance System 📱
+# QR Attendance System 🎓
 
-> A modern classroom management app where professors create QR codes and students scan them to mark attendance. Simple as that!
+A modern, secure QR-based attendance management system for educational institutions. Built with React, Node.js, and MongoDB.
 
-<p align="center">
-  <a href="https://qr-attendance-syste.vercel.app/">
-    <img src="https://img.shields.io/badge/🚀_Live_Demo-Visit_App-6366f1?style=for-the-badge" alt="Live Demo">
-  </a>
-</p>
+## 🌟 Features
 
----
+### For Students
+- **Google OAuth Login** - Secure authentication using institutional email (@mnit.ac.in)
+- **Auto-enrollment** - Courses automatically matched based on branch and year
+- **QR Code Scanning** - Mark attendance by scanning dynamic QR codes
+- **Geolocation Verification** - Ensures physical presence in classroom
+- **Attendance Dashboard** - View attendance history and statistics
+- **75% Criteria Tracking** - Monitor attendance percentage per subject
 
-## 🎯 Try It Out
+### For Professors
+- **Google OAuth Login** - Any Google account (requires admin approval)
+- **Course Management** - Create courses with branch, year, and semester binding
+- **Live Sessions** - Start sessions with dynamic QR codes that rotate every 30 seconds
+- **Real-time Attendance** - View students marking attendance live
+- **Geofencing** - Define classroom radius for attendance validation
 
-**Live App:** [https://qr-attendance-syste.vercel.app/](https://qr-attendance-syste.vercel.app/)
+### For Administrators
+- **Professor Approval** - Review and approve professor registration requests
+- **Secure Access** - Email/password authentication stored in environment variables
 
-### Quick Demo:
-1. **As a Professor:** Register → Create a course → Start a session → Share the QR
-2. **As a Student:** Register → Scan the QR → Done! Attendance marked ✅
+## 🏗️ Tech Stack
 
----
+### Frontend
+- **React 18** with Vite
+- **React Router v6** for navigation
+- **Axios** for API calls
+- **html5-qrcode** for QR scanning
+- **CSS3** with CSS variables for theming
 
-## What Can You Do?
+### Backend
+- **Node.js** with Express.js
+- **MongoDB** with Mongoose
+- **JWT** for authentication
+- **Google OAuth 2.0** for social login
+- **QRCode** for dynamic QR generation
 
-### 👨‍🏫 If You're a Professor
-- Create courses and organize them by semester
-- Start a class session with one click - a QR code appears instantly
-- Watch attendance roll in live as students scan
-- Share study materials (PDFs, links, documents)
-- Post announcements for your class
-- Create assignments with due dates
-- View detailed attendance reports
+## 📁 Project Structure
 
-### 👨‍🎓 If You're a Student  
-- Scan QR code to mark attendance (takes 3 seconds!)
-- See all your enrolled courses in one place
-- Track your attendance percentage per course
-- Access materials shared by professors
-- View upcoming assignments
+```
+qr-attendance-syste/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/     # Reusable components
+│   │   ├── context/        # React contexts (Auth, Theme)
+│   │   ├── pages/          # Page components
+│   │   │   ├── admin/      # Admin pages
+│   │   │   ├── professor/  # Professor pages
+│   │   │   └── student/    # Student pages
+│   │   └── config/         # API configuration
+│   └── public/             # Static assets
+│
+└── server/                 # Node.js backend
+    ├── controllers/        # Route handlers
+    ├── models/             # Mongoose schemas
+    ├── routes/             # API routes
+    ├── middleware/         # Auth middleware
+    ├── utils/              # Helper functions
+    ├── config/             # Configuration
+    └── scripts/            # Utility scripts
+```
 
-### 📱 Install as App (PWA)
-- **Works on any device** - Install ClassCheck on your phone's home screen
-- **Android:** Open the app → tap menu (⋮) → "Install app" or "Add to Home Screen"
-- **iOS:** Open in Safari → tap Share → "Add to Home Screen"
-- **Feels like a native app** - Full screen, fast, and works offline!
+## 🚀 Getting Started
 
-### 🔒 How Attendance Works
-- **Location Check:** Makes sure you're actually in class
-- **Device Tracking:** Prevents marking from multiple devices
-- **Time Window:** Can't mark attendance after class ends
-- **Real-time:** Professor sees who's present instantly
+### Prerequisites
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Google Cloud Console project with OAuth credentials
 
----
+### Installation
 
-## Tech Stack
-
-Built with the **MERN Stack:**
-- **M**ongoDB - Database
-- **E**xpress.js - Backend API
-- **R**eact - Frontend
-- **N**ode.js - Server
-
-Plus: JWT auth, Multer for file uploads, GPS verification
-
----
-
-## Run It Locally
-
-### What You Need
-- Node.js (v18+)
-- MongoDB database
-
-### Setup
-
+1. **Clone the repository**
 ```bash
-# Clone the repo
-git clone https://github.com/ritehrks/qr-attendance-syste.git
-cd qr-attendance-syste
+git clone https://github.com/yourusername/qr-attendance-system.git
+cd qr-attendance-system
+```
 
-# Setup backend
+2. **Setup Backend**
+```bash
 cd server
 npm install
-# Create .env with your MongoDB URI and JWT secret
+cp .env.example .env
+# Edit .env with your credentials
+npm run dev
+```
 
-# Setup frontend  
-cd ../client
+3. **Setup Frontend**
+```bash
+cd client
 npm install
-# Create .env with VITE_API_URL=http://localhost:5000/api
-
-# Run both
-# Terminal 1: cd server && npm run dev
-# Terminal 2: cd client && npm run dev
+cp .env.example .env
+# Edit .env with your credentials
+npm run dev
 ```
 
-Open http://localhost:5173 and you're good to go!
+### Environment Variables
 
----
+#### Server (.env)
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRE=7d
+FRONTEND_URL=http://localhost:5173
 
-## Project Structure
+# Admin Credentials
+ADMIN_EMAIL=admin@classcheck.com
+ADMIN_PASSWORD=your_secure_password
 
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
 ```
-├── client/          # React frontend (pages, components)
-├── server/          # Node.js backend (routes, models)
-└── README.md
+
+#### Client (.env)
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ```
 
+## 📱 Usage Flow
+
+### Student Login
+1. Go to `http://localhost:5173/`
+2. Sign in with Google using your `@mnit.ac.in` email
+3. Email format: `2024ucp1566@mnit.ac.in` (YEAR + BRANCH + ROLL)
+
+### Professor Login
+1. Go to `http://localhost:5173/professor/login`
+2. Sign in with any Google account
+3. Wait for admin approval
+
+### Admin Login
+1. Go to `http://localhost:5173/admin/login`
+2. Use credentials from `.env` file
+
+### Taking Attendance
+1. **Professor**: Create course → Start session → Display QR
+2. **Student**: Click "Mark Attendance" → Scan QR → Allow location → Submit
+
+## 🔒 Security Features
+
+- **JWT Authentication** - Secure token-based auth
+- **Role-based Access Control** - Student, Professor, Admin roles
+- **Domain Validation** - Only institutional emails for students
+- **Geolocation Verification** - Validates physical presence
+- **Device Fingerprinting** - Prevents attendance fraud
+- **Dynamic QR Codes** - Rotates every 30 seconds
+
+## 📊 Academic State Calculation
+
+| Admission Year | Current Year (2025) | Year of Study |
+|----------------|---------------------|---------------|
+| 2025 | 2025 | 1st Year |
+| 2024 | 2025 | 2nd Year |
+| 2023 | 2025 | 3rd Year |
+| 2022 | 2025 | 4th Year |
+
+## 🛠️ API Endpoints
+
+### Authentication
+- `POST /api/auth/google/student` - Student Google login
+- `POST /api/auth/google/professor` - Professor Google login
+- `POST /api/auth/admin/login` - Admin email/password login
+- `GET /api/auth/me` - Get current user
+
+### Courses
+- `GET /api/courses` - Get professor's courses
+- `POST /api/courses` - Create course
+- `GET /api/courses/my-courses` - Get student's enrolled courses
+
+### Sessions
+- `POST /api/sessions` - Start session
+- `GET /api/sessions/:id/qr` - Get current QR token
+- `PUT /api/sessions/:id/stop` - Stop session
+
+### Attendance
+- `POST /api/attendance/mark` - Mark attendance
+- `GET /api/attendance/history` - Get attendance history
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 👨‍💻 Author
+
+**Ritesh Saini**
+
 ---
 
-## Deployment
-
-- **Frontend:** Deployed on [Vercel](https://vercel.com)
-- **Backend:** Deployed on [Render](https://render.com)
-- **Database:** MongoDB Atlas
-
----
-
-## Screenshots
-
-*Coming soon!*
-
----
-
-## License
-
-MIT - Use it however you like!
-
----
-
-<p align="center">
-  Made with ☕ and late nights
-</p>
+Made with ❤️ for MNIT Jaipur

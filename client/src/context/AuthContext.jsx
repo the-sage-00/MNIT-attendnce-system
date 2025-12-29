@@ -13,64 +13,98 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-    const [admin, setAdmin] = useState(null);
+    const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (token) {
-            fetchAdmin();
+            fetchMe();
         } else {
             setLoading(false);
         }
     }, [token]);
 
-    const fetchAdmin = async () => {
+    const fetchMe = async () => {
         try {
             const res = await axios.get(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAdmin(res.data.admin);
+            setUser(res.data.data);
         } catch (error) {
-            // Only logout on 401 Unauthorized (invalid/expired token)
-            // Keep user logged in for network errors or other temporary failures
             if (error.response?.status === 401) {
-                console.error('Auth error:', error);
                 logout();
-            } else {
-                console.error('Network error:', error);
             }
         } finally {
             setLoading(false);
         }
     };
 
-    const login = async (email, password) => {
-        const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-        const { token: newToken, admin: adminData } = res.data;
+    /**
+     * Student Login with Google (MNIT emails only)
+     */
+    const loginAsStudent = async (credential) => {
+        const res = await axios.post(`${API_URL}/auth/google/student`, { credential });
+        const { token: newToken, user: userData } = res.data.data;
+
         localStorage.setItem('token', newToken);
         setToken(newToken);
-        setAdmin(adminData);
-        return res.data;
+        setUser(userData);
+        return userData;
     };
 
-    const register = async (name, email, password) => {
-        const res = await axios.post(`${API_URL}/auth/register`, { name, email, password });
-        const { token: newToken, admin: adminData } = res.data;
+    /**
+     * Professor Login with Google (Any email)
+     */
+    const loginAsProfessor = async (credential) => {
+        const res = await axios.post(`${API_URL}/auth/google/professor`, { credential });
+        const { token: newToken, user: userData } = res.data.data;
+
         localStorage.setItem('token', newToken);
         setToken(newToken);
-        setAdmin(adminData);
-        return res.data;
+        setUser(userData);
+        return userData;
+    };
+
+    /**
+     * Admin Login with email/password
+     */
+    const loginAsAdmin = async (email, password) => {
+        const res = await axios.post(`${API_URL}/auth/admin/login`, { email, password });
+        const { token: newToken, user: userData } = res.data.data;
+
+        localStorage.setItem('token', newToken);
+        setToken(newToken);
+        setUser(userData);
+        return userData;
+    };
+
+    /**
+     * Login with token directly (for admin login component)
+     */
+    const loginWithToken = (newToken, userData) => {
+        localStorage.setItem('token', newToken);
+        setToken(newToken);
+        setUser(userData);
     };
 
     const logout = () => {
         localStorage.removeItem('token');
         setToken(null);
-        setAdmin(null);
+        setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ admin, token, loading, login, register, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            token,
+            loading,
+            loginAsStudent,
+            loginAsProfessor,
+            loginAsAdmin,
+            loginWithToken,
+            logout
+        }}>
             {children}
         </AuthContext.Provider>
     );

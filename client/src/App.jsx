@@ -1,30 +1,27 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { StudentAuthProvider } from './context/StudentAuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import ProtectedStudentRoute from './components/ProtectedStudentRoute';
 
-// Public pages
-import Home from './pages/Home';
-import Scan from './pages/Scan';
-import Attend from './pages/Attend';
-import Success from './pages/Success';
+// Pages
+import Login from './pages/Login'; // Student Login (main page)
+import PendingApproval from './pages/PendingApproval';
 
-// Admin pages
-import Login from './pages/admin/Login';
-import Dashboard from './pages/admin/Dashboard';
-import SessionDetail from './pages/admin/SessionDetail';
-import Students from './pages/admin/Students';
-import Courses from './pages/admin/Courses';
-import CourseDetail from './pages/admin/CourseDetail';
+// Admin Pages
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminCourses from './pages/admin/Courses';
+import AdminStudents from './pages/admin/Students';
 
-// Student pages
-import StudentLogin from './pages/student/StudentLogin';
+// Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
-import StudentProfile from './pages/student/StudentProfile';
-import ForgotPassword from './pages/student/ForgotPassword';
-import ResetPassword from './pages/student/ResetPassword';
+import Attend from './pages/Attend';
+import Scan from './pages/Scan';
+
+// Professor Pages
+import ProfessorLogin from './pages/professor/ProfessorLogin';
+import ProfessorDashboard from './pages/professor/ProfessorDashboard';
+import SessionLive from './pages/professor/SessionLive';
 
 import './index.css';
 
@@ -32,86 +29,69 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <StudentAuthProvider>
-          <Router>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/scan" element={<Scan />} />
-              <Route path="/attend" element={<Attend />} />
-              <Route path="/success" element={<Success />} />
+        <Router>
+          <Routes>
+            {/* Public Login Pages */}
+            <Route path="/" element={<Login />} />
+            <Route path="/professor/login" element={<ProfessorLogin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/pending-approval" element={<PendingApproval />} />
 
-              {/* Student auth routes */}
-              <Route path="/student/login" element={<StudentLogin />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password/:token" element={<ResetPassword />} />
+            {/* Student Routes */}
+            <Route path="/student/dashboard" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/scan" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <Attend />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/attend" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <Attend />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/scan-qr" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <Scan />
+              </ProtectedRoute>
+            } />
 
-              {/* Protected student routes */}
-              <Route
-                path="/student/dashboard"
-                element={
-                  <ProtectedStudentRoute>
-                    <StudentDashboard />
-                  </ProtectedStudentRoute>
-                }
-              />
-              <Route
-                path="/student/profile"
-                element={
-                  <ProtectedStudentRoute>
-                    <StudentProfile />
-                  </ProtectedStudentRoute>
-                }
-              />
+            {/* Professor Routes */}
+            <Route path="/professor/dashboard" element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/professor/session/:id" element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <SessionLive />
+              </ProtectedRoute>
+            } />
 
-              {/* Admin routes */}
-              <Route path="/admin/login" element={<Login />} />
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/courses"
-                element={
-                  <ProtectedRoute>
-                    <Courses />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/courses/:id"
-                element={
-                  <ProtectedRoute>
-                    <CourseDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/session/:id"
-                element={
-                  <ProtectedRoute>
-                    <SessionDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/students"
-                element={
-                  <ProtectedRoute>
-                    <Students />
-                  </ProtectedRoute>
-                }
-              />
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/students" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminStudents />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/courses" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminCourses />
+              </ProtectedRoute>
+            } />
 
-              {/* Fallback */}
-              <Route path="*" element={<Home />} />
-            </Routes>
-          </Router>
-        </StudentAuthProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
       </AuthProvider>
     </ThemeProvider>
   );

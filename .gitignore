@@ -1,35 +1,104 @@
 # Dependencies
 node_modules/
-*/node_modules/
-
-# Environment files (SENSITIVE!)
-.env
-*.env
-.env.local
-.env.*.local
+.pnp/
+.pnp.js
 
 # Build outputs
 dist/
 build/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Keep example files
+!.env.example
 
 # Logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# OS files
-.DS_Store
-Thumbs.db
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# IDE files
+# Editor directories and files
 .idea/
 .vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 *.swp
 *.swo
+*~
 
-# Temp files
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Testing
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Vite
+*.local
+
+# Temporary files
+tmp/
+temp/
 *.tmp
-*.temp
 
-GITHUB_GUIDE.md
-PROJECT_STATUS.md
-DEPLOYMENT_GUIDE.md
+# Package manager locks (keep one, remove others if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# MongoDB local data
+data/
+mongodb-data/
+
+# Uploads
+uploads/
+public/uploads/
+
+# Misc
+.cache/
+*.bak
+*.backup
+
+# Service Worker generated files
+sw.js
+workbox-*.js
+
+# Gemini/AI generated
+.gemini/

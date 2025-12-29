@@ -1,0 +1,108 @@
+.admin-login-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 20px;
+}
+
+.admin-login-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.admin-login-card h1 {
+    color: #fff;
+    margin-bottom: 8px;
+    font-size: 1.8rem;
+}
+
+.admin-login-card>p {
+    color: #888;
+    margin-bottom: 32px;
+}
+
+.admin-login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.admin-login-card .form-group {
+    text-align: left;
+}
+
+.admin-login-card label {
+    display: block;
+    color: #aaa;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.admin-login-card .form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.admin-login-card .form-input:focus {
+    outline: none;
+    border-color: #4285f4;
+}
+
+.admin-login-card .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #4285f4, #34a853);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.admin-login-card .btn-primary:hover {
+    transform: translateY(-2px);
+}
+
+.admin-login-card .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.error-message {
+    background: rgba(255, 77, 77, 0.2);
+    border: 1px solid #ff4d4d;
+    color: #ff4d4d;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.back-link {
+    margin-top: 24px;
+}
+
+.back-link a {
+    color: #888;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.back-link a:hover {
+    color: #4285f4;
+}

@@ -1,100 +1,59 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useStudentAuth } from '../../context/StudentAuthContext';
+import { useAuth } from '../../context/AuthContext';
 import ThemeToggle from '../../components/ThemeToggle';
 import axios from 'axios';
 import API_URL from '../../config/api';
 import './StudentDashboard.css';
 
 const StudentDashboard = () => {
-    const { student, token, logout, getAttendance } = useStudentAuth();
+    const { user, token, logout } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState('courses');
+    const [attendanceHistory, setAttendanceHistory] = useState([]);
+    const [stats, setStats] = useState({ present: 0, late: 0, total: 0 });
     const [courses, setCourses] = useState([]);
-    const [attendance, setAttendance] = useState([]);
-    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Course detail state
-    const [selectedCourse, setSelectedCourse] = useState(null);
-    const [courseDetail, setCourseDetail] = useState(null);
-    const [materials, setMaterials] = useState([]);
-    const [announcements, setAnnouncements] = useState([]);
-    const [assignments, setAssignments] = useState([]);
-    const [courseTab, setCourseTab] = useState('announcements');
-    const [detailLoading, setDetailLoading] = useState(false);
-
     useEffect(() => {
-        fetchCourses();
-        fetchAttendance();
+        const fetchData = async () => {
+            setLoading(true);
+            await Promise.all([fetchHistory(), fetchCourses()]);
+            setLoading(false);
+        };
+        fetchData();
     }, []);
 
     const fetchCourses = async () => {
         try {
-            const res = await axios.get(`${API_URL}/student-auth/courses`, {
+            const res = await axios.get(`${API_URL}/courses/my-courses`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setCourses(res.data.data || []);
+            setCourses(res.data.data);
         } catch (error) {
             console.error('Failed to fetch courses:', error);
         }
     };
 
-    const fetchAttendance = async () => {
+    const fetchHistory = async () => {
         try {
-            const res = await getAttendance();
-            setAttendance(res.data);
-            setStats(res.stats);
-        } catch (error) {
-            console.error('Failed to fetch attendance:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCourseDetail = async (courseId) => {
-        setDetailLoading(true);
-        setSelectedCourse(courseId);
-        setCourseTab('announcements');
-
-        try {
-            // Fetch course detail (attendance)
-            const detailRes = await axios.get(`${API_URL}/student-auth/courses/${courseId}`, {
+            const res = await axios.get(`${API_URL}/attendance/history`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setCourseDetail(detailRes.data.data);
+            const data = res.data.data;
+            setAttendanceHistory(data);
 
-            // Fetch announcements
-            const announcementsRes = await axios.get(`${API_URL}/courses/${courseId}/announcements`);
-            setAnnouncements(announcementsRes.data.data || []);
-
-            // Fetch materials
-            const materialsRes = await axios.get(`${API_URL}/courses/${courseId}/materials`);
-            setMaterials(materialsRes.data.data || []);
-
-            // Fetch assignments
-            const assignmentsRes = await axios.get(`${API_URL}/courses/${courseId}/assignments`);
-            setAssignments(assignmentsRes.data.data || []);
-
+            // Calculate Stats
+            const present = data.filter(r => r.status === 'PRESENT').length;
+            const late = data.filter(r => r.status === 'LATE').length;
+            setStats({
+                present,
+                late,
+                total: data.length
+            });
         } catch (error) {
-            console.error('Failed to fetch course details:', error);
-        } finally {
-            setDetailLoading(false);
+            console.error('Failed to fetch attendance:', error);
         }
-    };
-
-    const handleLogout = () => {
-        logout();
-        navigate('/');
-    };
-
-    const closeCourseDetail = () => {
-        setSelectedCourse(null);
-        setCourseDetail(null);
-        setMaterials([]);
-        setAnnouncements([]);
-        setAssignments([]);
     };
 
     return (
@@ -102,30 +61,24 @@ const StudentDashboard = () => {
             <header className="dashboard-header">
                 <div className="header-left">
                     <h1>My Dashboard</h1>
-                    <p>Welcome, {student?.name}</p>
+                    <p>Welcome, {user?.name}</p>
                 </div>
                 <div className="header-right">
                     <ThemeToggle />
-                    <Link to="/student/profile" className="btn btn-secondary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        Profile
-                    </Link>
-                    <Link to="/scan" className="btn btn-success">Scan QR</Link>
-                    <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
+                    <Link to="/student/scan-qr" className="btn btn-success">Mark Attendance</Link>
+                    <button className="btn btn-ghost" onClick={() => { logout(); navigate('/'); }}>Logout</button>
                 </div>
             </header>
 
             <main className="dashboard-content">
                 {/* Profile Card */}
                 <div className="profile-card card">
-                    <div className="profile-avatar">{student?.name?.charAt(0)?.toUpperCase()}</div>
+                    <div className="profile-avatar">{user?.name?.charAt(0)?.toUpperCase()}</div>
                     <div className="profile-info">
-                        <h3>{student?.name}</h3>
-                        <p className="roll-badge">{student?.rollNo}</p>
-                        <p className="email">{student?.email}</p>
+                        <h3>{user?.name}</h3>
+                        <p className="roll-badge">{user?.academicState?.year ? `Year ${user.academicState.year}` : 'Student'}</p>
+                        <p className="email">{user?.email}</p>
+                        {user?.branch && <p className="branch-info">{user.branch}</p>}
                     </div>
                 </div>
 
@@ -134,236 +87,97 @@ const StudentDashboard = () => {
                     <div className="stat-card">
                         <div className="stat-icon total">📚</div>
                         <div className="stat-info">
-                            <h3>{courses.length}</h3>
-                            <p>Courses</p>
+                            <h3>{stats.total}</h3>
+                            <p>Total Classes</p>
                         </div>
                     </div>
                     <div className="stat-card present">
                         <div className="stat-icon">✅</div>
                         <div className="stat-info">
-                            <h3>{stats?.present || 0}</h3>
+                            <h3>{stats.present}</h3>
                             <p>Present</p>
                         </div>
                     </div>
                     <div className="stat-card late">
                         <div className="stat-icon">⏰</div>
                         <div className="stat-info">
-                            <h3>{stats?.late || 0}</h3>
+                            <h3>{stats.late}</h3>
                             <p>Late</p>
-                        </div>
-                    </div>
-                    <div className="stat-card invalid">
-                        <div className="stat-icon">❌</div>
-                        <div className="stat-info">
-                            <h3>{stats?.invalid || 0}</h3>
-                            <p>Invalid</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Course List */}
-                {!selectedCourse && (
-                    <div className="courses-section card">
-                        <h3>📚 My Courses</h3>
-                        {loading ? (
-                            <div className="loading-state">
-                                <div className="spinner"></div>
-                                <p>Loading courses...</p>
-                            </div>
-                        ) : courses.length === 0 ? (
-                            <div className="empty-state">
-                                <div className="empty-icon">📚</div>
-                                <h4>No Courses Yet</h4>
-                                <p>Mark attendance in a class to be enrolled in courses</p>
-                                <Link to="/scan" className="btn btn-success">Scan QR Code</Link>
-                            </div>
-                        ) : (
-                            <div className="courses-list">
-                                {courses.map(course => (
-                                    <div key={course._id} className="course-item" onClick={() => fetchCourseDetail(course._id)}>
-                                        <div className="course-info">
-                                            <span className="course-code">{course.courseCode}</span>
-                                            <h4>{course.courseName}</h4>
-                                            {course.semester && <span className="semester">{course.semester}</span>}
-                                        </div>
-                                        <div className="course-stats">
-                                            <div className="attendance-percentage" style={{
-                                                background: `linear-gradient(90deg, var(--success) ${course.attendancePercentage}%, var(--bg-surface) ${course.attendancePercentage}%)`
-                                            }}>
-                                                <span>{course.attendancePercentage}%</span>
-                                            </div>
-                                            <p className="attendance-count">{course.attendanceCount} / {course.totalSessions} sessions</p>
-                                        </div>
-                                        <div className="course-arrow">→</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Course Detail View */}
-                {selectedCourse && (
-                    <div className="course-detail-section card">
-                        <button className="back-link" onClick={closeCourseDetail}>← Back to Courses</button>
-
-                        {detailLoading ? (
-                            <div className="loading-state">
-                                <div className="spinner"></div>
-                                <p>Loading course...</p>
-                            </div>
-                        ) : courseDetail && (
-                            <>
-                                <div className="course-header">
-                                    <span className="course-code">{courseDetail.course.courseCode}</span>
-                                    <h3>{courseDetail.course.courseName}</h3>
+                {/* Courses List */}
+                <div className="courses-section card" style={{ marginBottom: '2rem' }}>
+                    <h3>📚 My Enrolled Courses</h3>
+                    {courses.length === 0 ? (
+                        <p className="empty-state">No courses found matching your academic year/branch.</p>
+                    ) : (
+                        <div className="courses-grid" style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                            gap: '1rem',
+                            marginTop: '1rem'
+                        }}>
+                            {courses.map(course => (
+                                <div key={course._id} className="course-card" style={{
+                                    border: '1px solid var(--border-subtle)',
+                                    padding: '1rem',
+                                    borderRadius: '0.5rem',
+                                    backgroundColor: 'var(--bg-elevated)'
+                                }}>
+                                    <span style={{
+                                        background: 'var(--primary-muted)',
+                                        color: 'var(--primary)',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 'bold'
+                                    }}>{course.courseCode}</span>
+                                    <h4 style={{ margin: '8px 0', color: 'var(--text-primary)' }}>{course.courseName}</h4>
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                                        Prof. {course.professor?.name}
+                                    </p>
                                 </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
-                                <div className="course-stats-bar">
-                                    <div className="stat">
-                                        <span className="value">{courseDetail.stats.percentage}%</span>
-                                        <span className="label">Attendance</span>
+                {/* Recent History */}
+                <div className="courses-section card">
+                    <h3>📅 Recent Activity</h3>
+                    {loading ? (
+                        <div className="loading-state">
+                            <div className="spinner"></div>
+                        </div>
+                    ) : attendanceHistory.length === 0 ? (
+                        <div className="empty-state">
+                            <p>No attendance records found.</p>
+                        </div>
+                    ) : (
+                        <div className="courses-list">
+                            {attendanceHistory.slice(0, 5).map(record => (
+                                <div key={record._id} className="course-item">
+                                    <div className="course-info">
+                                        <span className="course-code">
+                                            {new Date(record.createdAt).toLocaleDateString()}
+                                        </span>
+                                        <h4>{record.session?.courseName || 'Class'}</h4>
+                                        <span className="time">
+                                            {new Date(record.createdAt).toLocaleTimeString()}
+                                        </span>
                                     </div>
-                                    <div className="stat">
-                                        <span className="value">{courseDetail.stats.present}</span>
-                                        <span className="label">Present</span>
-                                    </div>
-                                    <div className="stat">
-                                        <span className="value">{courseDetail.stats.late}</span>
-                                        <span className="label">Late</span>
-                                    </div>
-                                    <div className="stat">
-                                        <span className="value">{courseDetail.stats.absent}</span>
-                                        <span className="label">Absent</span>
+                                    <div className="course-stats">
+                                        <span className={`status-badge ${record.status.toLowerCase()}`}>
+                                            {record.status}
+                                        </span>
                                     </div>
                                 </div>
-
-                                {/* Course Tabs */}
-                                <div className="course-tabs">
-                                    <button className={courseTab === 'announcements' ? 'active' : ''} onClick={() => setCourseTab('announcements')}>
-                                        📢 Announcements ({announcements.length})
-                                    </button>
-                                    <button className={courseTab === 'materials' ? 'active' : ''} onClick={() => setCourseTab('materials')}>
-                                        📁 Materials ({materials.length})
-                                    </button>
-                                    <button className={courseTab === 'assignments' ? 'active' : ''} onClick={() => setCourseTab('assignments')}>
-                                        📝 Assignments ({assignments.length})
-                                    </button>
-                                    <button className={courseTab === 'attendance' ? 'active' : ''} onClick={() => setCourseTab('attendance')}>
-                                        📅 Attendance
-                                    </button>
-                                </div>
-
-                                {/* Announcements Tab */}
-                                {courseTab === 'announcements' && (
-                                    <div className="announcements-list">
-                                        {announcements.length === 0 ? (
-                                            <div className="empty-state-small">No announcements yet.</div>
-                                        ) : (
-                                            announcements.map(announcement => (
-                                                <div key={announcement._id} className={`announcement-card ${announcement.isPinned ? 'pinned' : ''}`}>
-                                                    {announcement.isPinned && <span className="pin-badge">📌 Pinned</span>}
-                                                    <p>{announcement.content}</p>
-                                                    <span className="announcement-date">
-                                                        {new Date(announcement.createdAt).toLocaleDateString('en-IN', {
-                                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                        })}
-                                                    </span>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Materials Tab */}
-                                {courseTab === 'materials' && (
-                                    <div className="materials-list">
-                                        {materials.length === 0 ? (
-                                            <div className="empty-state-small">No materials shared yet.</div>
-                                        ) : (
-                                            materials.map(material => (
-                                                <div key={material._id} className="material-card">
-                                                    <div className="material-icon">{material.type === 'LINK' ? '🔗' : '📄'}</div>
-                                                    <div className="material-info">
-                                                        <h4>{material.title}</h4>
-                                                        {material.description && <p>{material.description}</p>}
-                                                        <span className="material-meta">
-                                                            {material.type === 'FILE' && `${Math.round(material.fileSize / 1024)}KB • `}
-                                                            {new Date(material.createdAt).toLocaleDateString()}
-                                                        </span>
-                                                    </div>
-                                                    {material.type === 'LINK' ? (
-                                                        <a href={material.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-secondary">
-                                                            Open ↗
-                                                        </a>
-                                                    ) : (
-                                                        <a href={`${API_URL}/courses/${selectedCourse}/materials/${material._id}/download`} className="btn btn-sm btn-secondary">
-                                                            Download
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Assignments Tab */}
-                                {courseTab === 'assignments' && (
-                                    <div className="assignments-list">
-                                        {assignments.length === 0 ? (
-                                            <div className="empty-state-small">No assignments yet.</div>
-                                        ) : (
-                                            assignments.map(assignment => {
-                                                const dueDate = new Date(assignment.dueDate);
-                                                const isOverdue = dueDate < new Date();
-                                                return (
-                                                    <div key={assignment._id} className={`assignment-card ${isOverdue ? 'overdue' : ''}`}>
-                                                        <div className="assignment-icon">📝</div>
-                                                        <div className="assignment-info">
-                                                            <h4>{assignment.title}</h4>
-                                                            {assignment.description && <p>{assignment.description}</p>}
-                                                            <span className={`due-date ${isOverdue ? 'overdue' : ''}`}>
-                                                                {isOverdue ? '⚠️ ' : '📅 '}
-                                                                Due: {dueDate.toLocaleDateString('en-IN', {
-                                                                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                                })}
-                                                            </span>
-                                                        </div>
-                                                        {assignment.points > 0 && (
-                                                            <span className="points-badge">{assignment.points} pts</span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Attendance Tab */}
-                                {courseTab === 'attendance' && (
-                                    <div className="session-list">
-                                        {courseDetail.sessions.map(session => (
-                                            <div key={session._id} className={`session-item ${session.status.toLowerCase()}`}>
-                                                <span className="session-number">#{session.sessionNumber}</span>
-                                                <span className="session-date">
-                                                    {new Date(session.date).toLocaleDateString('en-IN', {
-                                                        weekday: 'short', day: 'numeric', month: 'short'
-                                                    })}
-                                                </span>
-                                                <span className={`status-badge ${session.status.toLowerCase()}`}>
-                                                    {session.status === 'PRESENT' && '✅'}
-                                                    {session.status === 'LATE' && '⏰'}
-                                                    {session.status === 'ABSENT' && '❌'}
-                                                    {session.status}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );
