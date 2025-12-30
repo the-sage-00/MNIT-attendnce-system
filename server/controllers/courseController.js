@@ -368,7 +368,7 @@ export const getStudentCourses = async (req, res) => {
 
 /**
  * @route   GET /api/courses/my-timetable
- * @desc    Get weekly timetable for the student
+ * @desc    Get weekly timetable for the student (built from course schedules)
  * @access  Private (Student)
  */
 export const getStudentTimetable = async (req, res) => {
@@ -387,42 +387,52 @@ export const getStudentTimetable = async (req, res) => {
 
         const academicState = calculateAcademicState(admissionYear);
 
-        const timetable = await Timetable.findOne({
+        // Get all courses for this student's branch and year that have schedules
+        const courses = await Course.find({
             branch: branchCode.toLowerCase(),
             year: academicState.year,
-            isActive: true
-        }).populate({
-            path: 'slots.course',
-            select: 'courseCode courseName',
-            populate: { path: 'claimedBy', select: 'name' }
-        });
+            isArchived: false,
+            'schedule.day': { $exists: true, $ne: '' }
+        }).populate('claimedBy', 'name email');
 
-        if (!timetable) {
-            return res.status(404).json({
-                success: false,
-                error: 'No timetable found for your branch and year'
-            });
-        }
+        // Also get elective courses the student has been approved for
+        const electives = await Course.find({
+            _id: { $in: user.electiveCourses || [] },
+            isArchived: false,
+            'schedule.day': { $exists: true, $ne: '' }
+        }).populate('claimedBy', 'name email');
+
+        const allCourses = [...courses, ...electives];
 
         // Organize by day for easier frontend rendering
         const byDay = {};
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         days.forEach(day => {
-            byDay[day] = timetable.slots
-                .filter(slot => slot.day === day)
+            byDay[day] = allCourses
+                .filter(course => course.schedule?.day === day)
+                .map(course => ({
+                    startTime: course.schedule.startTime,
+                    endTime: course.schedule.endTime,
+                    room: course.schedule.room,
+                    course: {
+                        _id: course._id,
+                        courseCode: course.courseCode,
+                        courseName: course.courseName,
+                        claimedBy: course.claimedBy
+                    }
+                }))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
         });
 
         res.json({
             success: true,
             data: {
-                timetable,
                 byDay,
                 academicInfo: {
                     branch: branchCode,
                     year: academicState.year,
-                    semester: timetable.semester
+                    semester: academicState.semester
                 }
             }
         });

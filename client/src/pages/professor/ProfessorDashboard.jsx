@@ -7,6 +7,16 @@ import ThemeToggle from '../../components/ThemeToggle';
 import API_URL from '../../config/api';
 import './ProfessorDashboard.css';
 
+const BRANCH_OPTIONS = [
+    { code: 'uch', name: 'Chemical' },
+    { code: 'ucs', name: 'Computer Science' },
+    { code: 'uce', name: 'Civil' },
+    { code: 'uec', name: 'Electronics' },
+    { code: 'uee', name: 'Electrical' },
+    { code: 'ume', name: 'Mechanical' },
+    { code: 'umt', name: 'Metallurgical' }
+];
+
 const ProfessorDashboard = () => {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
@@ -17,6 +27,7 @@ const ProfessorDashboard = () => {
     const [pastSessions, setPastSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('claimed');
+    const [browseFilter, setBrowseFilter] = useState({ branch: '', year: '' });
 
     // Session Modal State
     const [showSessionModal, setShowSessionModal] = useState(false);
@@ -63,22 +74,41 @@ const ProfessorDashboard = () => {
     const fetchData = async () => {
         const headers = { Authorization: `Bearer ${token}` };
         try {
-            const [coursesRes, claimableRes, requestsRes, sessionsRes] = await Promise.all([
+            const [coursesRes, requestsRes, sessionsRes] = await Promise.all([
                 axios.get(`${API_URL}/courses`, { headers }),
-                axios.get(`${API_URL}/courses/claimable`, { headers }).catch(() => ({ data: { data: [] } })),
                 axios.get(`${API_URL}/courses/my-requests`, { headers }).catch(() => ({ data: { data: [] } })),
                 axios.get(`${API_URL}/sessions/professor/history`, { headers }).catch(() => ({ data: { data: [] } }))
             ]);
             setClaimedCourses(coursesRes.data.data || []);
-            setClaimableCourses(claimableRes.data.data || []);
             setMyRequests(requestsRes.data.data || []);
             setPastSessions(sessionsRes.data.data || []);
+            // Fetch claimable courses with filters
+            await fetchClaimableCourses();
         } catch (error) {
             console.error('Fetch error:', error);
         } finally {
             setLoading(false);
         }
     };
+
+    const fetchClaimableCourses = async () => {
+        const headers = { Authorization: `Bearer ${token}` };
+        try {
+            const params = new URLSearchParams();
+            if (browseFilter.branch) params.append('branch', browseFilter.branch);
+            if (browseFilter.year) params.append('year', browseFilter.year);
+            const res = await axios.get(`${API_URL}/courses/claimable?${params}`, { headers });
+            setClaimableCourses(res.data.data || []);
+        } catch (error) {
+            console.error('Fetch claimable error:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'claimable') {
+            fetchClaimableCourses();
+        }
+    }, [browseFilter]);
 
     const handleClaimCourse = async () => {
         if (!selectedCourse) return;
@@ -218,9 +248,25 @@ const ProfessorDashboard = () => {
                         {/* Claimable Courses Tab */}
                         {activeTab === 'claimable' && (
                             <div className="courses-section card">
-                                <h2>🔍 Available Courses to Claim</h2>
+                                <div className="section-header">
+                                    <h2>🔍 Browse Courses to Claim</h2>
+                                    <div className="filters-inline">
+                                        <select value={browseFilter.branch} onChange={e => setBrowseFilter({ ...browseFilter, branch: e.target.value })} className="filter-select">
+                                            <option value="">All Branches</option>
+                                            {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                                        </select>
+                                        <select value={browseFilter.year} onChange={e => setBrowseFilter({ ...browseFilter, year: e.target.value })} className="filter-select">
+                                            <option value="">All Years</option>
+                                            <option value="1">Year 1</option>
+                                            <option value="2">Year 2</option>
+                                            <option value="3">Year 3</option>
+                                            <option value="4">Year 4</option>
+                                        </select>
+                                        <span className="filter-count">{claimableCourses.length} courses</span>
+                                    </div>
+                                </div>
                                 {claimableCourses.length === 0 ? (
-                                    <p className="empty-state">No new courses available to claim.</p>
+                                    <p className="empty-state">No courses found. Try changing filters.</p>
                                 ) : (
                                     <div className="courses-grid">
                                         {claimableCourses.map(course => (
@@ -230,7 +276,7 @@ const ProfessorDashboard = () => {
                                                 <p className="course-meta">
                                                     {course.branch?.toUpperCase()} - Year {course.year}, Sem {course.semester}
                                                 </p>
-                                                {course.schedule && (
+                                                {course.schedule?.day && (
                                                     <p className="course-schedule">
                                                         📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
                                                         {course.schedule.room && ` | 🚪 ${course.schedule.room}`}
@@ -246,7 +292,7 @@ const ProfessorDashboard = () => {
                                                         setSelectedCourse(course);
                                                         setShowClaimModal(true);
                                                     }}>
-                                                        🙋 Claim This Course
+                                                        🙋 Claim
                                                     </button>
                                                 </div>
                                             </div>
