@@ -1,6 +1,12 @@
 import QRCode from 'qrcode';
-import { Session, Course, Attendance } from '../models/index.js';
+import { Session, Course, Attendance, AuditLog } from '../models/index.js';
+import { redisService } from '../config/redis.js';
 import config from '../config/index.js';
+
+/**
+ * SECURE SESSION CONTROLLER
+ * Implements enhanced QR generation with rotating tokens
+ */
 
 /**
  * @route   POST /api/sessions
@@ -14,7 +20,12 @@ export const createSession = async (req, res) => {
             centerLat,
             centerLng,
             radius,
-            duration // minutes
+            duration, // minutes
+            securityLevel = 'standard',
+            deviceBinding = true,
+            locationBinding = true,
+            requiredAccuracy = 100,
+            lateThreshold = 15
         } = req.body;
 
         if (!courseId || !centerLat || !centerLng) {
@@ -24,6 +35,7 @@ export const createSession = async (req, res) => {
             });
         }
 
+        // Validate course ownership
         const course = await Course.findOne({
             _id: courseId,
             professor: req.user._id
@@ -32,16 +44,31 @@ export const createSession = async (req, res) => {
         if (!course) {
             return res.status(404).json({
                 success: false,
-                error: 'Course not found'
+                error: 'Course not found or you are not the owner'
             });
         }
 
-        // Optional: Check active session for this course?
-        // Prompt says "The session is tied to exactly one course".
+        // Check for existing active session for this course
+        const existingSession = await Session.findOne({
+            course: courseId,
+            isActive: true,
+            endTime: { $gt: new Date() }
+        });
 
+        if (existingSession) {
+            return res.status(400).json({
+                success: false,
+                error: 'An active session already exists for this course',
+                existingSessionId: existingSession._id
+            });
+        }
+
+        // Calculate times
         const startTime = new Date();
-        const endTime = new Date(startTime.getTime() + (duration || course.defaultDuration || 60) * 60000);
+        const sessionDuration = duration || course.defaultDuration || 60;
+        const endTime = new Date(startTime.getTime() + sessionDuration * 60000);
 
+        // Create session with security settings
         const session = await Session.create({
             course: course._id,
             professor: req.user._id,
@@ -50,13 +77,61 @@ export const createSession = async (req, res) => {
             centerLat,
             centerLng,
             radius: radius || course.defaultLocation?.radius || 50,
+            securityLevel,
+            deviceBinding,
+            locationBinding,
+            requiredAccuracy,
+            lateThreshold,
             isActive: true
+        });
+
+        // Generate initial QR token
+        await session.refreshQRToken();
+
+        // Cache session in Redis
+        await redisService.cacheSession(
+            session._id.toString(),
+            session.getCacheSummary(),
+            sessionDuration * 60 + 300 // Session duration + 5 min buffer
+        );
+
+        // Audit log
+        await AuditLog.log({
+            eventType: 'SESSION_START',
+            userId: req.user._id,
+            userEmail: req.user.email,
+            userRole: 'professor',
+            sessionId: session._id,
+            courseId: course._id,
+            metadata: {
+                duration: sessionDuration,
+                securityLevel,
+                deviceBinding,
+                locationBinding,
+                radius: session.radius
+            }
         });
 
         res.status(201).json({
             success: true,
             message: 'Session started',
-            data: session
+            data: {
+                _id: session._id,
+                sessionId: session.sessionId,
+                course: {
+                    _id: course._id,
+                    courseName: course.courseName,
+                    courseCode: course.courseCode
+                },
+                startTime: session.startTime,
+                endTime: session.endTime,
+                duration: sessionDuration,
+                centerLat: session.centerLat,
+                centerLng: session.centerLng,
+                radius: session.radius,
+                securityLevel: session.securityLevel,
+                isActive: session.isActive
+            }
         });
 
     } catch (error) {
@@ -78,7 +153,7 @@ export const getSession = async (req, res) => {
         const session = await Session.findOne({
             _id: req.params.id,
             professor: req.user._id
-        }).populate('course');
+        }).populate('course', 'courseName courseCode branch year');
 
         if (!session) {
             return res.status(404).json({
@@ -87,26 +162,26 @@ export const getSession = async (req, res) => {
             });
         }
 
-        // Get Stats
-        const validCount = await Attendance.countDocuments({ session: session._id, status: 'PRESENT' });
-        const totalCount = await Attendance.countDocuments({ session: session._id });
+        // Get attendance stats
+        const stats = await Attendance.getSessionStats(session._id);
 
         res.json({
             success: true,
             data: {
                 ...session.toObject(),
-                stats: { validCount, totalCount }
+                stats
             }
         });
 
     } catch (error) {
+        console.error('Get Session Error:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
 /**
  * @route   GET /api/sessions/:id/qr
- * @desc    Get/Refresh QR (Professor Only)
+ * @desc    Get/Refresh QR (Professor Only) - Enhanced with rotating tokens
  * @access  Private (Professor)
  */
 export const getSessionQR = async (req, res) => {
@@ -117,28 +192,66 @@ export const getSessionQR = async (req, res) => {
         });
 
         if (!session) {
-            return res.status(404).json({ success: false, error: 'Session not found' });
+            return res.status(404).json({
+                success: false,
+                error: 'Session not found'
+            });
         }
 
         if (!session.isActive) {
-            return res.status(400).json({ success: false, error: 'Session is not active' });
+            return res.status(400).json({
+                success: false,
+                error: 'Session is not active'
+            });
         }
 
-        // Auto Refresh if expired
-        if (new Date() >= session.qrExpiresAt) {
+        // Check if session has ended
+        if (new Date() > session.endTime) {
+            session.isActive = false;
+            await session.save();
+            return res.status(400).json({
+                success: false,
+                error: 'Session has ended'
+            });
+        }
+
+        // Check if QR needs refresh
+        const now = Date.now();
+        if (now >= session.qrExpiresAt.getTime()) {
             await session.refreshQRToken();
         }
 
-        // Generate QR Data: JSON containing sessionID and Token
-        // The student scanner will read this JSON.
-        const qrContent = JSON.stringify({
-            s: session._id,
-            t: session.qrToken
-        });
+        // Get QR data for encoding
+        const qrData = session.getQRData();
 
+        // Store nonce in Redis for validation
+        await redisService.setSessionNonce(
+            session._id.toString(),
+            qrData.n,
+            Math.ceil((qrData.e - now) / 1000) + 5 // TTL in seconds + buffer
+        );
+
+        // Generate QR Code
+        const qrContent = JSON.stringify(qrData);
         const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
             width: 400,
-            margin: 2
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
+        });
+
+        // Audit QR generation
+        await AuditLog.log({
+            eventType: 'QR_GENERATED',
+            userId: req.user._id,
+            userRole: 'professor',
+            sessionId: session._id,
+            metadata: {
+                rotationCount: session.qrRotationCount,
+                expiresAt: session.qrExpiresAt
+            }
         });
 
         res.json({
@@ -146,13 +259,78 @@ export const getSessionQR = async (req, res) => {
             data: {
                 qrCode: qrCodeDataUrl,
                 expiresAt: session.qrExpiresAt,
-                remainingMs: new Date(session.qrExpiresAt).getTime() - Date.now()
+                remainingMs: session.qrExpiresAt.getTime() - now,
+                rotationCount: session.qrRotationCount,
+                refreshInterval: session.qrRotationInterval
             }
         });
 
     } catch (error) {
         console.error('QR Error:', error);
-        res.status(500).json({ success: false, error: 'Failed to generate QR' });
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate QR'
+        });
+    }
+};
+
+/**
+ * @route   POST /api/sessions/:id/refresh-qr
+ * @desc    Force refresh QR token (Professor Only)
+ * @access  Private (Professor)
+ */
+export const forceRefreshQR = async (req, res) => {
+    try {
+        const session = await Session.findOne({
+            _id: req.params.id,
+            professor: req.user._id,
+            isActive: true
+        });
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                error: 'Active session not found'
+            });
+        }
+
+        // Force refresh
+        await session.refreshQRToken();
+
+        // Invalidate old nonces in Redis
+        // (They will expire naturally, but we can explicitly invalidate if needed)
+
+        // Get new QR
+        const qrData = session.getQRData();
+        const qrContent = JSON.stringify(qrData);
+        const qrCodeDataUrl = await QRCode.toDataURL(qrContent, {
+            width: 400,
+            margin: 2
+        });
+
+        // Store new nonce
+        await redisService.setSessionNonce(
+            session._id.toString(),
+            qrData.n,
+            35
+        );
+
+        res.json({
+            success: true,
+            message: 'QR refreshed',
+            data: {
+                qrCode: qrCodeDataUrl,
+                expiresAt: session.qrExpiresAt,
+                rotationCount: session.qrRotationCount
+            }
+        });
+
+    } catch (error) {
+        console.error('Force Refresh Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to refresh QR'
+        });
     }
 };
 
@@ -169,17 +347,46 @@ export const stopSession = async (req, res) => {
             { new: true }
         );
 
-        if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                error: 'Session not found'
+            });
+        }
 
-        res.json({ success: true, message: 'Session stopped' });
+        // Invalidate session cache
+        await redisService.invalidateSession(session._id.toString());
+
+        // Get final stats
+        const stats = await Attendance.getSessionStats(session._id);
+
+        // Audit log
+        await AuditLog.log({
+            eventType: 'SESSION_STOP',
+            userId: req.user._id,
+            userRole: 'professor',
+            sessionId: session._id,
+            metadata: {
+                duration: (new Date() - session.startTime) / 60000,
+                attendanceCount: stats.total,
+                stats
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Session stopped',
+            stats
+        });
     } catch (error) {
+        console.error('Stop Session Error:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
 /**
  * @route   GET /api/sessions/:id/info
- * @desc    Get session basic info for student verification (Authenticated)
+ * @desc    Get session basic info for student verification
  * @access  Private (Student)
  */
 export const getStudentSessionInfo = async (req, res) => {
@@ -187,26 +394,182 @@ export const getStudentSessionInfo = async (req, res) => {
         const session = await Session.findById(req.params.id)
             .populate('course', 'courseName courseCode branch year semester');
 
-        if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                error: 'Session not found'
+            });
+        }
 
-        // Students should only see active sessions? Or defined by status.
-        // Prompt doesn't specify hiding inactive, but "Session Validity Check" fails if inactive.
+        // Check if student is eligible for this course
+        const student = req.user;
+        if (student.role === 'student') {
+            const branchMatch = (session.course.branch === student.branch) ||
+                (session.course.branch === student.branchCode);
+            const yearMatch = session.course.year === student.academicState?.year;
+
+            if (!branchMatch || !yearMatch) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'You are not eligible for this course',
+                    details: {
+                        required: {
+                            branch: session.course.branch,
+                            year: session.course.year
+                        },
+                        your: {
+                            branch: student.branchCode || student.branch,
+                            year: student.academicState?.year
+                        }
+                    }
+                });
+            }
+        }
 
         res.json({
             success: true,
             data: {
                 id: session._id,
+                sessionId: session.sessionId,
                 courseName: session.course.courseName,
                 courseCode: session.course.courseCode,
+                branch: session.course.branch,
+                year: session.course.year,
                 startTime: session.startTime,
                 endTime: session.endTime,
                 isActive: session.isActive,
-                centerLat: session.centerLat, // Maybe needed for frontend distance check ui?
+                securityLevel: session.securityLevel,
+                // Location info for client-side distance preview
+                centerLat: session.centerLat,
                 centerLng: session.centerLng,
-                radius: session.radius
+                radius: session.radius,
+                requiredAccuracy: session.requiredAccuracy
             }
         });
     } catch (error) {
+        console.error('Get Session Info Error:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
+};
+
+/**
+ * @route   GET /api/sessions/professor/active
+ * @desc    Get all active sessions for professor
+ * @access  Private (Professor)
+ */
+export const getActiveSessions = async (req, res) => {
+    try {
+        const sessions = await Session.findActiveByProfessor(req.user._id);
+
+        res.json({
+            success: true,
+            count: sessions.length,
+            data: sessions
+        });
+    } catch (error) {
+        console.error('Get Active Sessions Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   GET /api/sessions/professor/history
+ * @desc    Get session history for professor
+ * @access  Private (Professor)
+ */
+export const getSessionHistory = async (req, res) => {
+    try {
+        const { page = 1, limit = 20, courseId } = req.query;
+
+        const query = { professor: req.user._id };
+        if (courseId) query.course = courseId;
+
+        const sessions = await Session.find(query)
+            .populate('course', 'courseName courseCode')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        // Get attendance stats for each session
+        const sessionsWithStats = await Promise.all(
+            sessions.map(async (session) => {
+                const stats = await Attendance.getSessionStats(session._id);
+                return {
+                    ...session.toObject(),
+                    stats
+                };
+            })
+        );
+
+        const total = await Session.countDocuments(query);
+
+        res.json({
+            success: true,
+            count: sessions.length,
+            total,
+            page: parseInt(page),
+            pages: Math.ceil(total / limit),
+            data: sessionsWithStats
+        });
+    } catch (error) {
+        console.error('Get Session History Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   PUT /api/sessions/:id/settings
+ * @desc    Update session security settings
+ * @access  Private (Professor)
+ */
+export const updateSessionSettings = async (req, res) => {
+    try {
+        const { securityLevel, deviceBinding, locationBinding, radius, requiredAccuracy } = req.body;
+
+        const session = await Session.findOneAndUpdate(
+            { _id: req.params.id, professor: req.user._id, isActive: true },
+            {
+                ...(securityLevel && { securityLevel }),
+                ...(deviceBinding !== undefined && { deviceBinding }),
+                ...(locationBinding !== undefined && { locationBinding }),
+                ...(radius && { radius }),
+                ...(requiredAccuracy && { requiredAccuracy })
+            },
+            { new: true }
+        );
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                error: 'Active session not found'
+            });
+        }
+
+        // Update cache
+        await redisService.cacheSession(
+            session._id.toString(),
+            session.getCacheSummary()
+        );
+
+        res.json({
+            success: true,
+            message: 'Settings updated',
+            data: session
+        });
+    } catch (error) {
+        console.error('Update Settings Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+export default {
+    createSession,
+    getSession,
+    getSessionQR,
+    forceRefreshQR,
+    stopSession,
+    getStudentSessionInfo,
+    getActiveSessions,
+    getSessionHistory,
+    updateSessionSettings
 };

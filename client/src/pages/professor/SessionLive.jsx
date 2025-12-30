@@ -1,9 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
-import './SessionLive.css'; // Will create
+import './SessionLive.css';
+
+/**
+ * Live Session Management (Professor)
+ * Displays rotating QR code and real-time attendance
+ * 
+ * Enhanced with:
+ * - Manual QR refresh button
+ * - Security level display
+ * - Countdown timer for QR rotation
+ * - Suspicious activity indicators
+ */
 
 const SessionLive = () => {
     const { id } = useParams();
@@ -12,24 +23,49 @@ const SessionLive = () => {
 
     const [session, setSession] = useState(null);
     const [qrCode, setQrCode] = useState('');
-    const [stats, setStats] = useState({ validCount: 0, totalCount: 0 });
+    const [qrExpiry, setQrExpiry] = useState(null);
+    const [countdown, setCountdown] = useState(30);
+    const [stats, setStats] = useState({ validCount: 0, totalCount: 0, suspicious: 0 });
     const [attendees, setAttendees] = useState([]);
     const [isActive, setIsActive] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const pollingRef = useRef(null);
+    const countdownRef = useRef(null);
 
     useEffect(() => {
         fetchSessionDetails();
         fetchQR();
 
-        // Start polling
+        // Start polling for stats every 5 seconds
         pollingRef.current = setInterval(() => {
             fetchStats();
-            fetchQR(); // Auto refreshes if expired
         }, 5000);
 
-        return () => clearInterval(pollingRef.current);
+        return () => {
+            clearInterval(pollingRef.current);
+            clearInterval(countdownRef.current);
+        };
     }, [id]);
+
+    // Countdown timer for QR refresh
+    useEffect(() => {
+        if (qrExpiry && isActive) {
+            clearInterval(countdownRef.current);
+
+            countdownRef.current = setInterval(() => {
+                const remaining = Math.max(0, Math.floor((qrExpiry - Date.now()) / 1000));
+                setCountdown(remaining);
+
+                // Auto-refresh when expired
+                if (remaining <= 0) {
+                    fetchQR();
+                }
+            }, 1000);
+        }
+
+        return () => clearInterval(countdownRef.current);
+    }, [qrExpiry, isActive]);
 
     const fetchSessionDetails = async () => {
         try {
@@ -39,36 +75,64 @@ const SessionLive = () => {
             setSession(res.data.data);
             setIsActive(res.data.data.isActive);
         } catch (error) {
-            console.error(error);
+            console.error('Session fetch error:', error);
         }
     };
 
-    const fetchQR = async () => {
+    const fetchQR = useCallback(async () => {
         if (!isActive) return;
+
         try {
             const res = await axios.get(`${API_URL}/sessions/${id}/qr`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setQrCode(res.data.data.qrCode);
+            setQrExpiry(new Date(res.data.data.expiresAt).getTime());
+            setCountdown(Math.floor(res.data.data.remainingMs / 1000));
         } catch (error) {
             console.error('QR Fetch Error', error);
+            if (error.response?.data?.error === 'Session has ended') {
+                setIsActive(false);
+            }
         }
-    };
+    }, [id, token, isActive]);
 
     const fetchStats = async () => {
-        // Fetch attendees list and count
         try {
             const res = await axios.get(`${API_URL}/attendance/session/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAttendees(res.data.data);
+
+            const data = res.data.data || [];
+            setAttendees(data);
             setStats({
-                validCount: res.data.data.filter(a => a.status === 'PRESENT').length,
-                totalCount: res.data.data.length
+                validCount: data.filter(a => a.status === 'PRESENT').length,
+                lateCount: data.filter(a => a.status === 'LATE').length,
+                suspicious: data.filter(a =>
+                    a.status === 'SUSPICIOUS' ||
+                    (a.securityFlags && a.securityFlags.length > 0)
+                ).length,
+                totalCount: data.length
             });
         } catch (error) {
-            console.error(error);
+            console.error('Stats fetch error:', error);
         }
+    };
+
+    const handleForceRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            const res = await axios.post(`${API_URL}/sessions/${id}/refresh-qr`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setQrCode(res.data.data.qrCode);
+            setQrExpiry(new Date(res.data.data.expiresAt).getTime());
+            setCountdown(30);
+        } catch (error) {
+            console.error('Force refresh error:', error);
+            alert('Failed to refresh QR');
+        }
+        setIsRefreshing(false);
     };
 
     const handleStopSession = async () => {
@@ -79,6 +143,7 @@ const SessionLive = () => {
             });
             setIsActive(false);
             clearInterval(pollingRef.current);
+            clearInterval(countdownRef.current);
             alert('Session Stopped');
             navigate('/professor/dashboard');
         } catch (error) {
@@ -86,52 +151,136 @@ const SessionLive = () => {
         }
     };
 
+    // Get status badge color
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'PRESENT': return 'badge-success';
+            case 'LATE': return 'badge-warning';
+            case 'SUSPICIOUS': return 'badge-danger';
+            default: return 'badge-default';
+        }
+    };
+
     return (
         <div className="session-live-page">
             <header className="live-header">
-                <div>
+                <div className="header-info">
                     <h2>{session?.course?.courseName}</h2>
-                    <span className="live-badge">🔴 LIVE SESSION</span>
+                    <div className="header-badges">
+                        <span className="live-badge">🔴 LIVE SESSION</span>
+                        {session?.securityLevel && session.securityLevel !== 'standard' && (
+                            <span className="security-level-badge">
+                                🔒 {session.securityLevel.toUpperCase()}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <button className="btn btn-danger" onClick={handleStopSession}>Stop Session</button>
+                <button className="btn btn-danger" onClick={handleStopSession}>
+                    ⏹ Stop Session
+                </button>
             </header>
 
             <div className="live-content">
+                {/* QR Code Section */}
                 <div className="qr-section card">
-                    <h3>Scan to Mark Attendance</h3>
+                    <div className="qr-header">
+                        <h3>Scan to Mark Attendance</h3>
+                        <div className="qr-timer">
+                            <span className={`timer-count ${countdown <= 5 ? 'expiring' : ''}`}>
+                                {countdown}s
+                            </span>
+                            <button
+                                className="btn-refresh"
+                                onClick={handleForceRefresh}
+                                disabled={isRefreshing}
+                                title="Force refresh QR"
+                            >
+                                {isRefreshing ? '⏳' : '🔄'}
+                            </button>
+                        </div>
+                    </div>
+
                     {isActive ? (
                         <div className="qr-display">
-                            {qrCode ? <img src={qrCode} alt="Session QR" /> : <div className="spinner"></div>}
-                            <p className="refresh-hint">QR Code rotates automatically for security</p>
+                            {qrCode ? (
+                                <>
+                                    <img src={qrCode} alt="Session QR" />
+                                    <div className="qr-countdown-bar">
+                                        <div
+                                            className="countdown-progress"
+                                            style={{ width: `${(countdown / 30) * 100}%` }}
+                                        />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="spinner"></div>
+                            )}
+                            <p className="refresh-hint">
+                                🔐 QR rotates every 30s with HMAC security
+                            </p>
                         </div>
                     ) : (
                         <div className="session-ended">
-                            <p>Session Ended</p>
+                            <p>⏹ Session Ended</p>
                         </div>
                     )}
+
+                    <div className="session-info-row">
+                        <span>📍 Radius: {session?.radius || 50}m</span>
+                        <span>⏱ Started: {session?.startTime && new Date(session.startTime).toLocaleTimeString()}</span>
+                    </div>
                 </div>
 
+                {/* Attendees Section */}
                 <div className="attendees-section card">
                     <div className="stats-row">
-                        <div className="stat-box">
+                        <div className="stat-box stat-present">
                             <span className="count">{stats.validCount}</span>
                             <span className="label">Present</span>
                         </div>
-                        <div className="stat-box">
-                            <span className="count">{attendees.length}</span>
-                            <span className="label">Total Scans</span>
+                        <div className="stat-box stat-late">
+                            <span className="count">{stats.lateCount || 0}</span>
+                            <span className="label">Late</span>
+                        </div>
+                        <div className="stat-box stat-suspicious">
+                            <span className="count">{stats.suspicious}</span>
+                            <span className="label">Flagged</span>
+                        </div>
+                        <div className="stat-box stat-total">
+                            <span className="count">{stats.totalCount}</span>
+                            <span className="label">Total</span>
                         </div>
                     </div>
 
                     <h3>Live Attendees</h3>
                     <div className="attendees-list">
-                        {attendees.map(a => (
-                            <div key={a._id} className="attendee-item">
-                                <span className="roll">{a.rollNo || a.studentId}</span>
-                                <span className="name">{a.studentName}</span>
-                                <span className="time">{new Date(a.timestamp).toLocaleTimeString()}</span>
+                        {attendees.length === 0 ? (
+                            <div className="no-attendees">
+                                <p>No students have marked attendance yet</p>
                             </div>
-                        ))}
+                        ) : (
+                            attendees.map(a => (
+                                <div
+                                    key={a._id}
+                                    className={`attendee-item ${a.securityFlags?.length > 0 ? 'flagged' : ''}`}
+                                >
+                                    <span className="roll">{a.rollNo}</span>
+                                    <span className="name">{a.studentName}</span>
+                                    <span className={`status-badge ${getStatusBadge(a.status)}`}>
+                                        {a.status}
+                                    </span>
+                                    <span className="distance">{a.distance}m</span>
+                                    <span className="time">
+                                        {new Date(a.timestamp).toLocaleTimeString()}
+                                    </span>
+                                    {a.securityFlags?.length > 0 && (
+                                        <span className="flags" title={a.securityFlags.join(', ')}>
+                                            ⚠️
+                                        </span>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>

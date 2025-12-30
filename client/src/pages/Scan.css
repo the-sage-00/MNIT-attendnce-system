@@ -186,3 +186,79 @@
     color: var(--text-secondary);
     font-size: var(--text-sm);
 }
+
+/* Scan Status */
+.scan-status {
+    text-align: center;
+    padding: var(--space-3);
+    background: var(--primary-muted);
+    border-radius: var(--radius-lg);
+    color: var(--primary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Scan Tips */
+.scan-tips {
+    margin-top: var(--space-6);
+    padding: var(--space-5);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+}
+
+.scan-tips h4 {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+}
+
+.scan-tips ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.scan-tips li {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.scan-tips li:last-child {
+    border-bottom: none;
+}
+
+/* Alert Styles */
+.alert {
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+}
+
+.alert-error {
+    background: var(--error-muted);
+    border: 1px solid var(--error);
+    color: var(--error);
+}
+
+/* Camera Icon Emoji Style */
+.camera-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-3);
+}

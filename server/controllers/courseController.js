@@ -186,16 +186,20 @@ export const updateCourse = async (req, res) => {
 
 /**
  * @route   DELETE /api/courses/:id
- * @desc    Archive course
+ * @desc    Delete or Archive course
  * @access  Private (Professor)
+ * @query   permanent=true - Permanently delete (only if no sessions)
  */
 export const deleteCourse = async (req, res) => {
     try {
-        const course = await Course.findOneAndUpdate(
-            { _id: req.params.id, professor: req.user._id },
-            { isArchived: true },
-            { new: true }
-        );
+        const { id } = req.params;
+        const { permanent } = req.query;
+
+        // Find the course and verify ownership
+        const course = await Course.findOne({
+            _id: id,
+            professor: req.user._id
+        });
 
         if (!course) {
             return res.status(404).json({
@@ -204,15 +208,42 @@ export const deleteCourse = async (req, res) => {
             });
         }
 
+        // Check if there are any sessions for this course
+        const sessionCount = await Session.countDocuments({ course: id });
+
+        if (permanent === 'true') {
+            // Permanent delete - only allowed if no sessions exist
+            if (sessionCount > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Cannot permanently delete: Course has ${sessionCount} session(s). Archive instead or delete sessions first.`,
+                    sessionCount
+                });
+            }
+
+            // Permanently delete the course
+            await Course.findByIdAndDelete(id);
+
+            return res.json({
+                success: true,
+                message: 'Course permanently deleted'
+            });
+        }
+
+        // Archive the course (soft delete)
+        course.isArchived = true;
+        await course.save();
+
         res.json({
             success: true,
-            message: 'Course archived successfully'
+            message: 'Course archived successfully',
+            data: { sessionCount }
         });
     } catch (error) {
         console.error('Delete Course Error:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to archive course'
+            error: 'Failed to delete course'
         });
     }
 };

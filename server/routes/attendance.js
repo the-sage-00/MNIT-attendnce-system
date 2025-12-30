@@ -2,17 +2,59 @@ import express from 'express';
 import {
     markAttendance,
     getMyAttendance,
-    getAttendanceBySession
+    getAttendanceBySession,
+    getSuspiciousAttendance,
+    getStudentAudit,
+    getCourseAttendance,
+    exportCourseAttendance,
+    getSessionDetails,
+    getStudentSummary
 } from '../controllers/attendanceController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { rateLimitAttendance } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(protect);
 
-router.post('/mark', authorize('student'), markAttendance);
+// ========================================
+// STUDENT ROUTES
+// ========================================
+
+// Mark attendance (rate limited)
+router.post('/mark', authorize('student'), rateLimitAttendance, markAttendance);
+
+// Get own attendance history
 router.get('/history', authorize('student'), getMyAttendance);
 
+// Get comprehensive attendance summary
+router.get('/summary', authorize('student'), getStudentSummary);
+
+// ========================================
+// PROFESSOR ROUTES
+// ========================================
+
+// Get attendance for a session (basic)
 router.get('/session/:sessionId', authorize('professor', 'admin'), getAttendanceBySession);
+
+// Get detailed session attendance with full student info
+router.get('/session/:sessionId/details', authorize('professor', 'admin'), getSessionDetails);
+
+// Get complete course attendance with all students and sessions
+router.get('/course/:courseId', authorize('professor', 'admin'), getCourseAttendance);
+
+// Export course attendance to CSV
+router.get('/course/:courseId/export', authorize('professor', 'admin'), exportCourseAttendance);
+
+// ========================================
+// ADMIN ROUTES
+// ========================================
+
+// Get suspicious attendance records
+router.get('/suspicious', authorize('admin'), getSuspiciousAttendance);
+
+// Get student audit log
+router.get('/audit/:studentId', authorize('admin'), getStudentAudit);
 
 export default router;

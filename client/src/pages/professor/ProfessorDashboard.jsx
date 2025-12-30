@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import ThemeToggle from '../../components/ThemeToggle';
 import API_URL from '../../config/api';
@@ -11,7 +12,9 @@ const ProfessorDashboard = () => {
     const navigate = useNavigate();
 
     const [courses, setCourses] = useState([]);
+    const [pastSessions, setPastSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
 
     // Modal State
     const [showCourseModal, setShowCourseModal] = useState(false);
@@ -23,20 +26,62 @@ const ProfessorDashboard = () => {
         courseId: '', duration: 60, radius: 50
     });
     const [location, setLocation] = useState(null);
+    const [locationError, setLocationError] = useState('');
+    const [gettingLocation, setGettingLocation] = useState(false);
+
+    // Function to get location
+    const getLocation = useCallback(() => {
+        setGettingLocation(true);
+        setLocationError('');
+
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not supported by your browser');
+            setGettingLocation(false);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                setLocation({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude
+                });
+                setGettingLocation(false);
+            },
+            err => {
+                console.error('Location error:', err);
+                let errorMsg = 'Unable to get location';
+                switch (err.code) {
+                    case err.PERMISSION_DENIED:
+                        errorMsg = 'Location permission denied. Please allow GPS access.';
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        errorMsg = 'Location unavailable. Please check your GPS.';
+                        break;
+                    case err.TIMEOUT:
+                        errorMsg = 'Location request timed out. Try again.';
+                        break;
+                }
+                setLocationError(errorMsg);
+                setGettingLocation(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }, []);
 
     useEffect(() => {
         fetchCourses();
-        // Get location for session creation
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => setLocation({
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude // Fixed: was "position"
-                }),
-                err => console.error('Location error:', err)
-            );
-        }
+        fetchSessions();
+        // Try to get location on load
+        getLocation();
     }, []);
+
+    // Retry getting location when session modal opens
+    useEffect(() => {
+        if (showSessionModal && !location) {
+            getLocation();
+        }
+    }, [showSessionModal, location, getLocation]);
 
     const fetchCourses = async () => {
         try {
@@ -51,6 +96,20 @@ const ProfessorDashboard = () => {
         }
     };
 
+    const fetchSessions = async () => {
+        try {
+            setSessionsLoading(true);
+            const res = await axios.get(`${API_URL}/sessions/professor/history`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPastSessions(res.data.data || []);
+        } catch (error) {
+            console.error('Fetch sessions error:', error);
+        } finally {
+            setSessionsLoading(false);
+        }
+    };
+
     const handleCreateCourse = async (e) => {
         e.preventDefault();
         try {
@@ -60,15 +119,16 @@ const ProfessorDashboard = () => {
             setShowCourseModal(false);
             setNewCourse({ courseCode: '', courseName: '', branch: 'CSE', year: 1, semester: 1 });
             fetchCourses();
+            toast.success('Course created successfully!');
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to create course');
+            toast.error(error.response?.data?.error || 'Failed to create course');
         }
     };
 
     const handleStartSession = async (e) => {
         e.preventDefault();
         if (!location) {
-            alert('Location not available. Please allow GPS.');
+            toast.error('Location not available. Please allow GPS.');
             return;
         }
         try {
@@ -82,9 +142,46 @@ const ProfessorDashboard = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowSessionModal(false);
+            toast.success('Session started successfully!');
             navigate(`/professor/session/${res.data.data._id}`);
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to start session');
+            toast.error(error.response?.data?.error || 'Failed to start session');
+        }
+    };
+
+    const handleDeleteCourse = async (courseId, courseName) => {
+        const confirmMsg = `Delete "${courseName}"?\n\nThis will:\n- Permanently delete if no sessions exist\n- Archive if sessions exist (can be restored later)\n\nContinue?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            // Try permanent delete first
+            const res = await axios.delete(`${API_URL}/courses/${courseId}?permanent=true`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(res.data.message);
+            fetchCourses();
+        } catch (error) {
+            if (error.response?.status === 400 && error.response?.data?.sessionCount) {
+                // Has sessions - archive instead
+                const archiveConfirm = confirm(
+                    `This course has ${error.response.data.sessionCount} session(s).\n\nWould you like to archive it instead?`
+                );
+
+                if (archiveConfirm) {
+                    try {
+                        const archiveRes = await axios.delete(`${API_URL}/courses/${courseId}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        toast.success(archiveRes.data.message);
+                        fetchCourses();
+                    } catch (archiveError) {
+                        toast.error(archiveError.response?.data?.error || 'Failed to archive course');
+                    }
+                }
+            } else {
+                toast.error(error.response?.data?.error || 'Failed to delete course');
+            }
         }
     };
 
@@ -122,6 +219,65 @@ const ProfessorDashboard = () => {
                                     <span className="course-code">{course.courseCode}</span>
                                     <h3>{course.courseName}</h3>
                                     <p>{course.branch} - Year {course.year}, Sem {course.semester}</p>
+                                    <div className="course-actions">
+                                        <button
+                                            className="btn btn-sm btn-primary"
+                                            onClick={() => {
+                                                setNewSession({ ...newSession, courseId: course._id });
+                                                setShowSessionModal(true);
+                                            }}
+                                        >
+                                            ▶ Start Session
+                                        </button>
+                                        <button
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={() => navigate(`/professor/course/${course._id}/attendance`)}
+                                        >
+                                            📊 Attendance
+                                        </button>
+                                        <button
+                                            className="btn btn-sm btn-danger"
+                                            onClick={() => handleDeleteCourse(course._id, course.courseName)}
+                                            title="Delete course"
+                                        >
+                                            🗑
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Session History Section */}
+                <div className="sessions-section card" style={{ marginTop: '2rem' }}>
+                    <div className="section-header">
+                        <h2>📜 Recent Sessions</h2>
+                        <button className="btn btn-sm btn-ghost" onClick={fetchSessions}>Refresh</button>
+                    </div>
+
+                    {sessionsLoading ? (
+                        <div className="spinner"></div>
+                    ) : pastSessions.length === 0 ? (
+                        <p className="empty-state">No past sessions found.</p>
+                    ) : (
+                        <div className="sessions-list">
+                            {pastSessions.map(session => (
+                                <div key={session._id} className="session-item" onClick={() => navigate(`/professor/session/${session._id}`)}>
+                                    <div className="session-info">
+                                        <h4>{session.course?.courseName || 'Unknown Course'}</h4>
+                                        <p className="session-date">
+                                            {new Date(session.startTime).toLocaleDateString()} • {new Date(session.startTime).toLocaleTimeString()}
+                                        </p>
+                                    </div>
+                                    <div className="session-stats">
+                                        <span className={`status-badge ${session.isActive ? 'active' : 'ended'}`}>
+                                            {session.isActive ? 'LIVE' : 'ENDED'}
+                                        </span>
+                                        <span className="attendance-count">
+                                            👥 {session.attendanceCount || 0}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -224,13 +380,24 @@ const ProfessorDashboard = () => {
                                 />
                                 <div className="location-status">
                                     {location ? (
-                                        <span className="location-ok">📍 Location acquired</span>
-                                    ) : (
+                                        <span className="location-ok">📍 Location acquired ({location.lat.toFixed(4)}, {location.lng.toFixed(4)})</span>
+                                    ) : gettingLocation ? (
                                         <span className="location-pending">📍 Getting location...</span>
+                                    ) : locationError ? (
+                                        <div className="location-error">
+                                            <span>❌ {locationError}</span>
+                                            <button type="button" className="btn btn-sm" onClick={getLocation}>Retry</button>
+                                        </div>
+                                    ) : (
+                                        <button type="button" className="btn btn-secondary" onClick={getLocation}>
+                                            📍 Get Location
+                                        </button>
                                     )}
                                 </div>
                                 <div className="modal-actions">
-                                    <button type="submit" className="btn btn-success" disabled={!location}>Start Class</button>
+                                    <button type="submit" className="btn btn-success" disabled={!location || gettingLocation}>
+                                        {gettingLocation ? 'Getting Location...' : 'Start Class'}
+                                    </button>
                                     <button type="button" className="btn btn-ghost" onClick={() => setShowSessionModal(false)}>Cancel</button>
                                 </div>
                             </form>

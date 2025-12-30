@@ -16,6 +16,9 @@ import courseRoutes from './routes/courses.js';
 import sessionRoutes from './routes/sessions.js';
 import attendanceRoutes from './routes/attendance.js';
 
+// Security middleware
+import { globalRateLimit } from './middleware/rateLimiter.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -27,6 +30,9 @@ const app = express();
 // ============================================
 // MIDDLEWARE
 // ============================================
+
+// Trust proxy (for accurate IP detection behind reverse proxy)
+app.set('trust proxy', 1);
 
 // CORS configuration
 app.use(cors({
@@ -40,8 +46,18 @@ app.use(express.json({ limit: '10mb' }));
 // Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files (if any needed, though "No image upload" per prompt)
-// Keeping for safety if existing assets exist
+// Add request metadata for security
+app.use((req, res, next) => {
+    req.requestTime = new Date();
+    req.clientIp = req.ip || req.connection?.remoteAddress;
+    next();
+});
+
+// Global rate limiting (100 requests per minute per user)
+// Enable after Redis is set up
+// app.use(globalRateLimit);
+
+// Serve uploaded files (if any)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============================================
@@ -63,7 +79,6 @@ app.use('/api/sessions', sessionRoutes);
 // Attendance Marking & Tracking
 app.use('/api/attendance', attendanceRoutes);
 
-
 // ============================================
 // UTILITY ROUTES
 // ============================================
@@ -73,9 +88,46 @@ app.get('/api/health', (req, res) => {
     res.json({
         success: true,
         message: 'QR Attendance API is running',
-        version: '3.0.0', // Bumped version
-        timestamp: new Date().toISOString()
+        version: '4.0.0-secure',  // Security update version
+        timestamp: new Date().toISOString(),
+        security: {
+            qrRotation: true,
+            deviceBinding: true,
+            replayProtection: true,
+            auditLogging: true
+        }
     });
+});
+
+// Security status endpoint (for monitoring)
+app.get('/api/health/security', async (req, res) => {
+    try {
+        const { redisService } = await import('./config/redis.js');
+        const redisStats = await redisService.getStats();
+
+        res.json({
+            success: true,
+            redis: {
+                connected: redisStats.connected,
+                status: redisStats.connected ? 'operational' : 'degraded'
+            },
+            features: {
+                hmacTokens: true,
+                rotatingQR: true,
+                deviceFingerprinting: true,
+                replayProtection: redisStats.connected,
+                rateLimiting: redisStats.connected,
+                auditLogging: true
+            },
+            degradedMode: !redisStats.connected
+        });
+    } catch (error) {
+        res.json({
+            success: true,
+            redis: { connected: false, status: 'unavailable' },
+            degradedMode: true
+        });
+    }
 });
 
 // ============================================
@@ -94,11 +146,48 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
     console.error('Server Error:', err.stack);
 
+    // Log error to audit if available
+    import('./models/AuditLog.js').then(({ default: AuditLog }) => {
+        AuditLog.log({
+            eventType: 'SYSTEM_ERROR',
+            userId: req.user?._id,
+            metadata: {
+                error: err.message,
+                path: req.path,
+                method: req.method
+            }
+        }).catch(() => { });
+    }).catch(() => { });
+
     res.status(err.statusCode || 500).json({
         success: false,
-        error: err.message || 'Internal Server Error'
+        error: config.nodeEnv === 'production'
+            ? 'Internal Server Error'
+            : err.message
     });
 });
+
+// ============================================
+// GRACEFUL SHUTDOWN
+// ============================================
+
+const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+    try {
+        // Close Redis connection
+        const { redis } = await import('./config/redis.js');
+        await redis.quit();
+        console.log('Redis connection closed');
+    } catch (err) {
+        console.log('Redis not connected or already closed');
+    }
+
+    process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // ============================================
 // SERVER START
@@ -108,11 +197,21 @@ const PORT = config.port || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`
-╔═══════════════════════════════════════════╗
-║     QR Attendance System - Backend        ║
-╚═══════════════════════════════════════════╝
-Server running on port ${PORT}
-API: http://localhost:${PORT}/api
+╔═══════════════════════════════════════════════════╗
+║     QR Attendance System - Secure Backend         ║
+║           Version 4.0.0-secure                    ║
+╠═══════════════════════════════════════════════════╣
+║  Security Features:                               ║
+║  ✓ HMAC-based rotating QR tokens                  ║
+║  ✓ Device fingerprinting & binding                ║
+║  ✓ Replay attack protection                       ║
+║  ✓ Enhanced geolocation validation                ║
+║  ✓ Rate limiting & abuse detection                ║
+║  ✓ Comprehensive audit logging                    ║
+╠═══════════════════════════════════════════════════╣
+║  Server: http://localhost:${PORT}                     ║
+║  API:    http://localhost:${PORT}/api                 ║
+╚═══════════════════════════════════════════════════╝
     `);
 });
 

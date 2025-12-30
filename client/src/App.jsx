@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -12,6 +14,8 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminCourses from './pages/admin/Courses';
 import AdminStudents from './pages/admin/Students';
+import AdminCourseDetail from './pages/admin/CourseDetail';
+import AdminSessionDetail from './pages/admin/SessionDetail';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -22,6 +26,7 @@ import Scan from './pages/Scan';
 import ProfessorLogin from './pages/professor/ProfessorLogin';
 import ProfessorDashboard from './pages/professor/ProfessorDashboard';
 import SessionLive from './pages/professor/SessionLive';
+import CourseAttendance from './pages/professor/CourseAttendance';
 
 import './index.css';
 
@@ -30,6 +35,13 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={true}
+            theme="colored"
+          />
           <Routes>
             {/* Public Login Pages */}
             <Route path="/" element={<Login />} />
@@ -70,6 +82,11 @@ function App() {
                 <SessionLive />
               </ProtectedRoute>
             } />
+            <Route path="/professor/course/:courseId/attendance" element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <CourseAttendance />
+              </ProtectedRoute>
+            } />
 
             {/* Admin Routes */}
             <Route path="/admin/dashboard" element={
@@ -85,6 +102,16 @@ function App() {
             <Route path="/admin/courses" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminCourses />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/course/:id" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminCourseDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/session/:id" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSessionDetail />
               </ProtectedRoute>
             } />
 

@@ -3,22 +3,53 @@ import {
     createSession,
     getSession,
     getSessionQR,
+    forceRefreshQR,
     stopSession,
-    getStudentSessionInfo
+    getStudentSessionInfo,
+    getActiveSessions,
+    getSessionHistory,
+    updateSessionSettings
 } from '../controllers/sessionController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(protect);
 
-// Student Route
+// ========================================
+// STUDENT ROUTES
+// ========================================
+
+// Get session info for attendance marking
 router.get('/:id/info', authorize('student'), getStudentSessionInfo);
 
-// Professor Routes
+// ========================================
+// PROFESSOR ROUTES
+// ========================================
+
+// Create new session
 router.post('/', authorize('professor', 'admin'), createSession);
+
+// Get active sessions
+router.get('/professor/active', authorize('professor', 'admin'), getActiveSessions);
+
+// Get session history
+router.get('/professor/history', authorize('professor', 'admin'), getSessionHistory);
+
+// Get specific session
 router.get('/:id', authorize('professor', 'admin'), getSession);
+
+// Get/refresh QR code
 router.get('/:id/qr', authorize('professor', 'admin'), getSessionQR);
+
+// Force refresh QR
+router.post('/:id/refresh-qr', authorize('professor', 'admin'), forceRefreshQR);
+
+// Update session settings
+router.put('/:id/settings', authorize('professor', 'admin'), updateSessionSettings);
+
+// Stop session
 router.put('/:id/stop', authorize('professor', 'admin'), stopSession);
 
 export default router;
