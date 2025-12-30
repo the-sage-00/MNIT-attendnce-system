@@ -13,8 +13,8 @@ export default {
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     jwtExpire: process.env.JWT_EXPIRE || '7d',
 
-    // Frontend
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    // Frontend (remove trailing slash to prevent CORS mismatch)
+    frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, ''),
 
     // Email config
     smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
