@@ -3,6 +3,8 @@ import {
     // Professor management
     getPendingProfessors,
     approveProfessor,
+    getAllStudents,
+    getAllProfessors,
     // Course management
     createCourse,
     bulkImportCourses,
@@ -38,6 +40,12 @@ router.use(authorize('admin'));
 // ANALYTICS
 // ============================================
 router.get('/analytics', getSystemAnalytics);
+
+// ============================================
+// USER LISTS
+// ============================================
+router.get('/students', getAllStudents);
+router.get('/professors', getAllProfessors);
 
 // ============================================
 // PROFESSOR MANAGEMENT

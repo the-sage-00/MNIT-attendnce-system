@@ -87,14 +87,37 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleCardClick = (type) => {
+    const handleCardClick = async (type) => {
         switch (type) {
             case 'students':
-                navigate('/admin/students');
+                try {
+                    const studentsRes = await axios.get(`${API_URL}/admin/students`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setDetailModal({
+                        open: true,
+                        type: 'students',
+                        title: `👥 All Students (${studentsRes.data.count})`,
+                        data: studentsRes.data.data
+                    });
+                } catch (err) {
+                    toast.error('Failed to load students');
+                }
                 break;
             case 'professors':
-                setActiveTab('professors');
-                document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth' });
+                try {
+                    const profRes = await axios.get(`${API_URL}/admin/professors`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setDetailModal({
+                        open: true,
+                        type: 'professors',
+                        title: `👨‍🏫 All Professors (${profRes.data.count})`,
+                        data: profRes.data.data
+                    });
+                } catch (err) {
+                    toast.error('Failed to load professors');
+                }
                 break;
             case 'courses':
                 navigate('/admin/courses');
@@ -359,6 +382,49 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Detail Modal */}
+            {detailModal.open && (
+                <div className="modal-overlay" onClick={() => setDetailModal({ ...detailModal, open: false })}>
+                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>{detailModal.title}</h2>
+                            <button className="modal-close" onClick={() => setDetailModal({ ...detailModal, open: false })}>×</button>
+                        </div>
+                        <div className="modal-body detail-modal-body">
+                            {detailModal.data.length === 0 ? (
+                                <p className="empty-state">No data found.</p>
+                            ) : (
+                                <div className="detail-list">
+                                    {detailModal.type === 'students' && detailModal.data.map(student => (
+                                        <div key={student._id} className="detail-item">
+                                            <div className="detail-info">
+                                                <strong>{student.name}</strong>
+                                                <span className="detail-email">{student.email}</span>
+                                            </div>
+                                            <div className="detail-meta">
+                                                {student.rollNo && <span className="detail-badge">{student.rollNo}</span>}
+                                                {student.branch && <span className="detail-tag">{student.branch}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {detailModal.type === 'professors' && detailModal.data.map(prof => (
+                                        <div key={prof._id} className="detail-item">
+                                            <div className="detail-info">
+                                                <strong>{prof.name}</strong>
+                                                <span className="detail-email">{prof.email}</span>
+                                            </div>
+                                            <div className="detail-meta">
+                                                <span className="detail-badge">{prof.courseCount || 0} courses</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -13,6 +13,48 @@ export const getPendingProfessors = async (req, res) => {
     }
 };
 
+/**
+ * @route   GET /api/admin/students
+ * @desc    Get all students
+ * @access  Private (Admin)
+ */
+export const getAllStudents = async (req, res) => {
+    try {
+        const students = await User.find({ role: 'student' })
+            .select('name email rollNo branch branchCode academicState createdAt')
+            .sort({ createdAt: -1 });
+        res.json({ success: true, count: students.length, data: students });
+    } catch (error) {
+        console.error('Get Students Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   GET /api/admin/professors
+ * @desc    Get all approved professors
+ * @access  Private (Admin)
+ */
+export const getAllProfessors = async (req, res) => {
+    try {
+        const professors = await User.find({ role: 'professor' })
+            .select('name email createdAt');
+
+        // Get count of courses claimed by each professor
+        const professorsWithCourses = await Promise.all(
+            professors.map(async (prof) => {
+                const courseCount = await Course.countDocuments({ claimedBy: prof._id });
+                return { ...prof.toObject(), courseCount };
+            })
+        );
+
+        res.json({ success: true, count: professors.length, data: professorsWithCourses });
+    } catch (error) {
+        console.error('Get Professors Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 export const approveProfessor = async (req, res) => {
     try {
         const { id } = req.params;
