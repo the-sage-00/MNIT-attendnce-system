@@ -412,3 +412,149 @@
         justify-content: flex-end;
     }
 }
+
+/* ================================
+   TABBED APPROVAL QUEUE (NEW)
+   ================================ */
+.approval-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.approval-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.approval-header h2 {
+    margin: 0;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 0.5rem 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    background: var(--bg-hover);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.tab-btn .badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.tab-btn:not(.active) .badge {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.approval-content {
+    padding: 1.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.approval-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.approval-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border-radius: 0.75rem;
+    gap: 1rem;
+}
+
+.approval-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.approval-info strong {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.approval-info span {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.approval-info small {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.request-message {
+    font-style: italic;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-size: 0.8rem !important;
+}
+
+.approval-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Attendance overview update */
+.attendance-overview .overview-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+    .tab-buttons {
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        flex-wrap: nowrap;
+    }
+
+    .tab-btn {
+        white-space: nowrap;
+    }
+
+    .approval-item {
+        flex-direction: column;
+    }
+
+    .approval-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

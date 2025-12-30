@@ -24,6 +24,7 @@ const userSchema = new mongoose.Schema({
         enum: ['student', 'pending_professor', 'professor', 'admin'],
         default: 'student'
     },
+
     // Student Specific Fields (Derived & Immutable)
     rollNo: {
         type: String,
@@ -35,12 +36,25 @@ const userSchema = new mongoose.Schema({
     },
     branchCode: {
         type: String,
-        default: null
+        default: null,
+        lowercase: true
     },
     admissionYear: {
         type: Number,
         default: null
-    }
+    },
+
+    // For non-standard MNIT emails that need admin review
+    pendingReview: {
+        type: Boolean,
+        default: false
+    },
+
+    // Approved elective courses (courses outside student's branch/year)
+    electiveCourses: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course'
+    }]
 }, {
     timestamps: true,
     toJSON: { virtuals: true },
@@ -51,6 +65,11 @@ const userSchema = new mongoose.Schema({
 userSchema.virtual('academicState').get(function () {
     if (this.role !== 'student' || !this.admissionYear) return null;
     return calculateAcademicState(this.admissionYear);
+});
+
+// Virtual to check if user needs admin review
+userSchema.virtual('needsReview').get(function () {
+    return this.pendingReview === true;
 });
 
 export default mongoose.model('User', userSchema);

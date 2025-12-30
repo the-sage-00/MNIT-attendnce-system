@@ -586,3 +586,190 @@
         animation: none;
     }
 }
+
+/* ================================
+   TAB NAVIGATION
+   ================================ */
+.tab-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 0.6rem 1.2rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    background: var(--bg-hover);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* ================================
+   TIMETABLE SECTION
+   ================================ */
+.timetable-section {
+    margin-bottom: 1.5rem;
+}
+
+.timetable-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+}
+
+.timetable-day {
+    background: var(--bg-surface);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    min-height: 150px;
+}
+
+.day-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.no-classes {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    font-style: italic;
+}
+
+.day-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.timetable-slot {
+    background: var(--bg-elevated);
+    border-radius: 0.5rem;
+    padding: 0.6rem;
+    border-left: 3px solid var(--primary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.slot-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.slot-course {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.slot-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.slot-room {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* ================================
+   COURSES SECTION
+   ================================ */
+.courses-section {
+    margin-bottom: 1.5rem;
+}
+
+.courses-group {
+    margin-bottom: 1.5rem;
+}
+
+.courses-group h4 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.courses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.course-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border-radius: 0.75rem;
+    gap: 1rem;
+}
+
+.course-item.elective {
+    border-left: 3px solid #8b5cf6;
+}
+
+.course-item .course-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.course-item .course-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: right;
+}
+
+.schedule-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.elective-badge {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .timetable-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .course-item {
+        flex-direction: column;
+    }
+
+    .course-item .course-meta {
+        text-align: left;
+    }
+}

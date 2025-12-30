@@ -1,109 +1,147 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import API_URL from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
+import ThemeToggle from '../../components/ThemeToggle';
 import './Courses.css';
 
-const Courses = () => {
+const BRANCH_OPTIONS = [
+    { code: 'uch', name: 'Chemical Engineering' },
+    { code: 'ucs', name: 'Computer Science Engineering' },
+    { code: 'uce', name: 'Civil Engineering' },
+    { code: 'uec', name: 'Electronics & Communication' },
+    { code: 'uee', name: 'Electrical Engineering' },
+    { code: 'ume', name: 'Mechanical Engineering' },
+    { code: 'umt', name: 'Metallurgical Engineering' }
+];
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const AdminCourses = () => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [newCourse, setNewCourse] = useState({
+    const [editingCourse, setEditingCourse] = useState(null);
+    const [filter, setFilter] = useState({ branch: '', year: '', claimed: '' });
+
+    const [formData, setFormData] = useState({
         courseCode: '',
         courseName: '',
         description: '',
-        semester: ''
+        branch: '',
+        year: 1,
+        semester: 1,
+        schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+        defaultDuration: 60,
+        lateThreshold: 15
     });
-    const [creating, setCreating] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const { token, logout } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchCourses();
-    }, []);
+    }, [filter]);
 
     const fetchCourses = async () => {
         try {
-            const res = await axios.get(`${API_URL}/courses`, {
+            const params = new URLSearchParams();
+            if (filter.branch) params.append('branch', filter.branch);
+            if (filter.year) params.append('year', filter.year);
+            if (filter.claimed) params.append('claimed', filter.claimed);
+
+            const res = await axios.get(`${API_URL}/admin/courses?${params}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCourses(res.data.data);
         } catch (err) {
             if (err.response?.status === 401) {
                 logout();
-                navigate('/login');
+                navigate('/admin/login');
             } else {
-                setError('Failed to fetch courses');
+                toast.error('Failed to fetch courses');
             }
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCreateCourse = async (e) => {
+    const resetForm = () => {
+        setFormData({
+            courseCode: '',
+            courseName: '',
+            description: '',
+            branch: '',
+            year: 1,
+            semester: 1,
+            schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+            defaultDuration: 60,
+            lateThreshold: 15
+        });
+        setEditingCourse(null);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setCreating(true);
+        setSaving(true);
+
         try {
-            const res = await axios.post(`${API_URL}/courses`, newCourse, {
+            if (editingCourse) {
+                await axios.put(`${API_URL}/admin/courses/${editingCourse._id}`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                toast.success('Course updated successfully');
+            } else {
+                await axios.post(`${API_URL}/admin/courses`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                toast.success('Course created successfully');
+            }
+            setShowModal(false);
+            resetForm();
+            fetchCourses();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to save course');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEdit = (course) => {
+        setFormData({
+            courseCode: course.courseCode,
+            courseName: course.courseName,
+            description: course.description || '',
+            branch: course.branch,
+            year: course.year,
+            semester: course.semester,
+            schedule: course.schedule || { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+            defaultDuration: course.defaultDuration || 60,
+            lateThreshold: course.lateThreshold || 15
+        });
+        setEditingCourse(course);
+        setShowModal(true);
+    };
+
+    const handleDelete = async (course) => {
+        if (!confirm(`Are you sure you want to archive "${course.courseName}"?`)) return;
+        try {
+            await axios.delete(`${API_URL}/admin/courses/${course._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setCourses([res.data.data, ...courses]);
-            setShowModal(false);
-            setNewCourse({ courseCode: '', courseName: '', description: '', semester: '' });
+            toast.success('Course archived');
+            fetchCourses();
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to create course');
-        } finally {
-            setCreating(false);
+            toast.error(err.response?.data?.error || 'Failed to archive course');
         }
     };
 
-    const handleStartSession = async (courseId) => {
-        // Get current location first
-        if (!navigator.geolocation) {
-            setError('Geolocation is not supported');
-            return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                try {
-                    const res = await axios.post(
-                        `${API_URL}/courses/${courseId}/start-session`,
-                        {
-                            centerLat: position.coords.latitude,
-                            centerLng: position.coords.longitude,
-                            radius: 50,
-                            duration: 60
-                        },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    // Navigate to the active session page
-                    navigate(`/admin/session/${res.data.data.session._id}`);
-                } catch (err) {
-                    setError(err.response?.data?.error || 'Failed to start session');
-                }
-            },
-            (err) => {
-                setError('Please enable location to start a session');
-            },
-            { enableHighAccuracy: true }
-        );
-    };
-
-    const handleStopSession = async (course) => {
-        try {
-            await axios.post(
-                `${API_URL}/courses/${course._id}/stop-session`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            fetchCourses(); // Refresh to update active session status
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to stop session');
-        }
+    const getBranchName = (code) => {
+        const branch = BRANCH_OPTIONS.find(b => b.code === code);
+        return branch ? branch.name : code?.toUpperCase();
     };
 
     if (loading) {
@@ -121,93 +159,103 @@ const Courses = () => {
         <div className="courses-page">
             <header className="courses-header">
                 <div className="header-content">
-                    <h1>📚 My Courses</h1>
-                    <p>Manage your courses and sessions</p>
+                    <h1>📚 Course Management</h1>
+                    <p>Create and manage courses for all branches</p>
                 </div>
                 <div className="header-actions">
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => setShowModal(true)}
-                    >
-                        + New Course
+                    <ThemeToggle />
+                    <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
+                        + Create Course
                     </button>
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => navigate('/admin/dashboard')}
-                    >
-                        Back to Dashboard
+                    <button className="btn btn-secondary" onClick={() => navigate('/admin/dashboard')}>
+                        ← Dashboard
                     </button>
                 </div>
             </header>
 
-            {error && (
-                <div className="alert alert-error" style={{ margin: '0 var(--space-6) var(--space-4)' }}>
-                    {error}
-                    <button onClick={() => setError('')} style={{ marginLeft: 'auto' }}>×</button>
-                </div>
-            )}
+            {/* Filters */}
+            <div className="filters-bar">
+                <select
+                    value={filter.branch}
+                    onChange={(e) => setFilter({ ...filter, branch: e.target.value })}
+                    className="filter-select"
+                >
+                    <option value="">All Branches</option>
+                    {BRANCH_OPTIONS.map(b => (
+                        <option key={b.code} value={b.code}>{b.name}</option>
+                    ))}
+                </select>
+                <select
+                    value={filter.year}
+                    onChange={(e) => setFilter({ ...filter, year: e.target.value })}
+                    className="filter-select"
+                >
+                    <option value="">All Years</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                </select>
+                <select
+                    value={filter.claimed}
+                    onChange={(e) => setFilter({ ...filter, claimed: e.target.value })}
+                    className="filter-select"
+                >
+                    <option value="">All Status</option>
+                    <option value="true">Claimed</option>
+                    <option value="false">Unclaimed</option>
+                </select>
+                <span className="filter-count">{courses.length} courses</span>
+            </div>
 
+            {/* Courses Grid */}
             <div className="courses-grid">
                 {courses.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-icon">📚</div>
-                        <h3>No courses yet</h3>
-                        <p>Create your first course to start taking attendance</p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => setShowModal(true)}
-                        >
+                        <h3>No courses found</h3>
+                        <p>Create your first course or adjust filters</p>
+                        <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
                             Create Course
                         </button>
                     </div>
                 ) : (
                     courses.map(course => (
-                        <div key={course._id} className={`course-card ${course.activeSession ? 'active' : ''}`}>
+                        <div key={course._id} className={`course-card ${course.claimedBy?.length > 0 ? 'claimed' : 'unclaimed'}`}>
                             <div className="course-header">
                                 <div className="course-code">{course.courseCode}</div>
-                                {course.activeSession && (
-                                    <span className="active-badge">🔴 LIVE</span>
+                                {course.claimedBy?.length > 0 ? (
+                                    <span className="status-badge claimed">✓ Claimed ({course.claimedBy.length})</span>
+                                ) : (
+                                    <span className="status-badge unclaimed">○ Unclaimed</span>
                                 )}
                             </div>
                             <h3 className="course-name">{course.courseName}</h3>
-                            {course.semester && (
-                                <p className="course-semester">{course.semester}</p>
-                            )}
-                            <div className="course-stats">
-                                <div className="stat">
-                                    <span className="stat-value">{course.totalSessions}</span>
-                                    <span className="stat-label">Sessions</span>
-                                </div>
+                            <div className="course-meta">
+                                <span className="meta-item">{getBranchName(course.branch)}</span>
+                                <span className="meta-item">Year {course.year}</span>
+                                <span className="meta-item">Sem {course.semester}</span>
                             </div>
+                            {course.schedule && (
+                                <div className="course-schedule">
+                                    📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
+                                    {course.schedule.room && <span> | 🚪 {course.schedule.room}</span>}
+                                </div>
+                            )}
+                            {course.claimedBy?.length > 0 && (
+                                <div className="claimed-by">
+                                    👨‍🏫 {course.claimedBy.map(p => p.name).join(', ')}
+                                </div>
+                            )}
                             <div className="course-actions">
-                                {course.activeSession ? (
-                                    <>
-                                        <button
-                                            className="btn btn-danger"
-                                            onClick={() => handleStopSession(course)}
-                                        >
-                                            ⏹ Stop Session
-                                        </button>
-                                        <button
-                                            className="btn btn-secondary"
-                                            onClick={() => navigate(`/admin/session/${course.activeSession._id || course.activeSession}`)}
-                                        >
-                                            📺 View Live
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        className="btn btn-success"
-                                        onClick={() => handleStartSession(course._id)}
-                                    >
-                                        ▶ Start Session
-                                    </button>
-                                )}
-                                <button
-                                    className="btn btn-ghost"
-                                    onClick={() => navigate(`/admin/courses/${course._id}`)}
-                                >
+                                <button className="btn btn-sm btn-secondary" onClick={() => handleEdit(course)}>
+                                    ✏️ Edit
+                                </button>
+                                <button className="btn btn-sm btn-ghost" onClick={() => navigate(`/admin/courses/${course._id}`)}>
                                     📊 Details
+                                </button>
+                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(course)}>
+                                    🗑️
                                 </button>
                             </div>
                         </div>
@@ -215,71 +263,160 @@ const Courses = () => {
                 )}
             </div>
 
-            {/* Create Course Modal */}
+            {/* Create/Edit Course Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>Create New Course</h2>
+                            <h2>{editingCourse ? 'Edit Course' : 'Create New Course'}</h2>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <form onSubmit={handleCreateCourse}>
-                            <div className="form-group">
-                                <label className="form-label">Course Code *</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="e.g., 22CH132, CS101"
-                                    value={newCourse.courseCode}
-                                    onChange={e => setNewCourse({ ...newCourse, courseCode: e.target.value })}
-                                    required
-                                />
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Course Code *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="e.g., CS101"
+                                        value={formData.courseCode}
+                                        onChange={e => setFormData({ ...formData, courseCode: e.target.value })}
+                                        required
+                                        disabled={!!editingCourse}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Course Name *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="e.g., Data Structures"
+                                        value={formData.courseName}
+                                        onChange={e => setFormData({ ...formData, courseName: e.target.value })}
+                                        required
+                                    />
+                                </div>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">Course Name *</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="e.g., Organic Chemistry"
-                                    value={newCourse.courseName}
-                                    onChange={e => setNewCourse({ ...newCourse, courseName: e.target.value })}
-                                    required
-                                />
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Branch *</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.branch}
+                                        onChange={e => setFormData({ ...formData, branch: e.target.value })}
+                                        required
+                                        disabled={!!editingCourse}
+                                    >
+                                        <option value="">Select Branch</option>
+                                        {BRANCH_OPTIONS.map(b => (
+                                            <option key={b.code} value={b.code}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Year *</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.year}
+                                        onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                                        required
+                                        disabled={!!editingCourse}
+                                    >
+                                        <option value={1}>1st Year</option>
+                                        <option value={2}>2nd Year</option>
+                                        <option value={3}>3rd Year</option>
+                                        <option value={4}>4th Year</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Semester *</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.semester}
+                                        onChange={e => setFormData({ ...formData, semester: parseInt(e.target.value) })}
+                                        required
+                                    >
+                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                                            <option key={s} value={s}>Semester {s}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
+
                             <div className="form-group">
                                 <label className="form-label">Description</label>
                                 <textarea
                                     className="form-input"
-                                    placeholder="Optional description"
-                                    value={newCourse.description}
-                                    onChange={e => setNewCourse({ ...newCourse, description: e.target.value })}
-                                    rows={3}
+                                    placeholder="Course description..."
+                                    value={formData.description}
+                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                    rows={2}
                                 />
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">Semester</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="e.g., Fall 2024"
-                                    value={newCourse.semester}
-                                    onChange={e => setNewCourse({ ...newCourse, semester: e.target.value })}
-                                />
+
+                            <div className="form-section">
+                                <h4>📅 Schedule</h4>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Day</label>
+                                        <select
+                                            className="form-input"
+                                            value={formData.schedule.day}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                schedule: { ...formData.schedule, day: e.target.value }
+                                            })}
+                                        >
+                                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Start Time</label>
+                                        <input
+                                            type="time"
+                                            className="form-input"
+                                            value={formData.schedule.startTime}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                schedule: { ...formData.schedule, startTime: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">End Time</label>
+                                        <input
+                                            type="time"
+                                            className="form-input"
+                                            value={formData.schedule.endTime}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                schedule: { ...formData.schedule, endTime: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Room</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="e.g., LH-101"
+                                            value={formData.schedule.room}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                schedule: { ...formData.schedule, room: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                </div>
                             </div>
+
                             <div className="modal-actions">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowModal(false)}
-                                >
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                                     Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary"
-                                    disabled={creating}
-                                >
-                                    {creating ? 'Creating...' : 'Create Course'}
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving ? 'Saving...' : (editingCourse ? 'Update Course' : 'Create Course')}
                                 </button>
                             </div>
                         </form>
@@ -290,4 +427,4 @@ const Courses = () => {
     );
 };
 
-export default Courses;
+export default AdminCourses;

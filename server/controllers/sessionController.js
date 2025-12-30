@@ -35,16 +35,16 @@ export const createSession = async (req, res) => {
             });
         }
 
-        // Validate course ownership
+        // Validate professor has claimed this course
         const course = await Course.findOne({
             _id: courseId,
-            professor: req.user._id
+            claimedBy: req.user._id
         });
 
         if (!course) {
             return res.status(404).json({
                 success: false,
-                error: 'Course not found or you are not the owner'
+                error: 'Course not found or not claimed by you'
             });
         }
 
@@ -150,15 +150,15 @@ export const createSession = async (req, res) => {
  */
 export const getSession = async (req, res) => {
     try {
-        const session = await Session.findOne({
-            _id: req.params.id,
-            professor: req.user._id
-        }).populate('course', 'courseName courseCode branch year');
+        // Find session and verify professor has claimed the course
+        const session = await Session.findById(req.params.id)
+            .populate('course', 'courseName courseCode branch year claimedBy');
 
-        if (!session) {
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
+
             return res.status(404).json({
                 success: false,
-                error: 'Session not found'
+                error: 'Session not found or you have not claimed this course'
             });
         }
 
@@ -186,15 +186,13 @@ export const getSession = async (req, res) => {
  */
 export const getSessionQR = async (req, res) => {
     try {
-        const session = await Session.findOne({
-            _id: req.params.id,
-            professor: req.user._id
-        });
+        const session = await Session.findById(req.params.id)
+            .populate('course', 'claimedBy');
 
-        if (!session) {
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
             return res.status(404).json({
                 success: false,
-                error: 'Session not found'
+                error: 'Session not found or you have not claimed this course'
             });
         }
 
@@ -283,14 +281,13 @@ export const forceRefreshQR = async (req, res) => {
     try {
         const session = await Session.findOne({
             _id: req.params.id,
-            professor: req.user._id,
             isActive: true
-        });
+        }).populate('course', 'claimedBy');
 
-        if (!session) {
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
             return res.status(404).json({
                 success: false,
-                error: 'Active session not found'
+                error: 'Active session not found or you have not claimed this course'
             });
         }
 
@@ -341,18 +338,21 @@ export const forceRefreshQR = async (req, res) => {
  */
 export const stopSession = async (req, res) => {
     try {
-        const session = await Session.findOneAndUpdate(
-            { _id: req.params.id, professor: req.user._id },
-            { isActive: false, endTime: new Date() },
-            { new: true }
-        );
+        // First verify professor has claimed the course
+        const session = await Session.findById(req.params.id)
+            .populate('course', 'claimedBy');
 
-        if (!session) {
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
             return res.status(404).json({
                 success: false,
-                error: 'Session not found'
+                error: 'Session not found or you have not claimed this course'
             });
         }
+
+        // Stop the session
+        session.isActive = false;
+        session.endTime = new Date();
+        await session.save();
 
         // Invalidate session cache
         await redisService.invalidateSession(session._id.toString());
@@ -454,12 +454,24 @@ export const getStudentSessionInfo = async (req, res) => {
 
 /**
  * @route   GET /api/sessions/professor/active
- * @desc    Get all active sessions for professor
+ * @desc    Get all active sessions for courses claimed by professor
  * @access  Private (Professor)
  */
 export const getActiveSessions = async (req, res) => {
     try {
-        const sessions = await Session.findActiveByProfessor(req.user._id);
+        // Find all courses claimed by this professor
+        const claimedCourses = await Course.find({
+            claimedBy: req.user._id,
+            isArchived: false
+        }).select('_id');
+
+        const courseIds = claimedCourses.map(c => c._id);
+
+        const sessions = await Session.find({
+            course: { $in: courseIds },
+            isActive: true,
+            endTime: { $gt: new Date() }
+        }).populate('course', 'courseName courseCode branch year');
 
         res.json({
             success: true,
@@ -474,15 +486,24 @@ export const getActiveSessions = async (req, res) => {
 
 /**
  * @route   GET /api/sessions/professor/history
- * @desc    Get session history for professor
+ * @desc    Get session history for courses claimed by professor
  * @access  Private (Professor)
  */
 export const getSessionHistory = async (req, res) => {
     try {
         const { page = 1, limit = 20, courseId } = req.query;
 
-        const query = { professor: req.user._id };
-        if (courseId) query.course = courseId;
+        // Find all courses claimed by this professor
+        const claimedCourses = await Course.find({
+            claimedBy: req.user._id
+        }).select('_id');
+
+        const courseIds = claimedCourses.map(c => c._id);
+
+        const query = { course: { $in: courseIds } };
+        if (courseId && courseIds.some(id => id.toString() === courseId)) {
+            query.course = courseId;
+        }
 
         const sessions = await Session.find(query)
             .populate('course', 'courseName courseCode')
@@ -518,6 +539,62 @@ export const getSessionHistory = async (req, res) => {
 };
 
 /**
+ * @route   DELETE /api/sessions/:id
+ * @desc    Cancel a session (before it ends)
+ * @access  Private (Professor - must have claimed the course)
+ */
+export const cancelSession = async (req, res) => {
+    try {
+        const session = await Session.findById(req.params.id)
+            .populate('course', 'claimedBy courseName courseCode');
+
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
+            return res.status(404).json({
+                success: false,
+                error: 'Session not found or you have not claimed this course'
+            });
+        }
+
+        if (!session.isActive) {
+            return res.status(400).json({
+                success: false,
+                error: 'Session is already inactive'
+            });
+        }
+
+        // Mark as cancelled
+        session.isActive = false;
+        session.endTime = new Date();
+        session.cancelledAt = new Date();
+        session.cancelledBy = req.user._id;
+        await session.save();
+
+        // Invalidate session cache
+        await redisService.invalidateSession(session._id.toString());
+
+        // Audit log
+        await AuditLog.log({
+            eventType: 'SESSION_CANCELLED',
+            userId: req.user._id,
+            userRole: 'professor',
+            sessionId: session._id,
+            metadata: {
+                courseName: session.course.courseName,
+                courseCode: session.course.courseCode
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Session cancelled successfully'
+        });
+    } catch (error) {
+        console.error('Cancel Session Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
  * @route   PUT /api/sessions/:id/settings
  * @desc    Update session security settings
  * @access  Private (Professor)
@@ -526,24 +603,26 @@ export const updateSessionSettings = async (req, res) => {
     try {
         const { securityLevel, deviceBinding, locationBinding, radius, requiredAccuracy } = req.body;
 
-        const session = await Session.findOneAndUpdate(
-            { _id: req.params.id, professor: req.user._id, isActive: true },
-            {
-                ...(securityLevel && { securityLevel }),
-                ...(deviceBinding !== undefined && { deviceBinding }),
-                ...(locationBinding !== undefined && { locationBinding }),
-                ...(radius && { radius }),
-                ...(requiredAccuracy && { requiredAccuracy })
-            },
-            { new: true }
-        );
+        // First verify professor has claimed the course
+        const session = await Session.findOne({
+            _id: req.params.id,
+            isActive: true
+        }).populate('course', 'claimedBy');
 
-        if (!session) {
+        if (!session || !session.course.claimedBy.includes(req.user._id)) {
             return res.status(404).json({
                 success: false,
-                error: 'Active session not found'
+                error: 'Active session not found or you have not claimed this course'
             });
         }
+
+        // Update settings
+        if (securityLevel) session.securityLevel = securityLevel;
+        if (deviceBinding !== undefined) session.deviceBinding = deviceBinding;
+        if (locationBinding !== undefined) session.locationBinding = locationBinding;
+        if (radius) session.radius = radius;
+        if (requiredAccuracy) session.requiredAccuracy = requiredAccuracy;
+        await session.save();
 
         // Update cache
         await redisService.cacheSession(
@@ -568,6 +647,7 @@ export default {
     getSessionQR,
     forceRefreshQR,
     stopSession,
+    cancelSession,
     getStudentSessionInfo,
     getActiveSessions,
     getSessionHistory,

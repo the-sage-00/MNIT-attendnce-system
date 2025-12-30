@@ -4,6 +4,9 @@ import Session from './Session.js';
 import Attendance from './Attendance.js';
 import AuditLog from './AuditLog.js';
 import DeviceRegistry from './DeviceRegistry.js';
+import Timetable from './Timetable.js';
+import ClaimRequest from './ClaimRequest.js';
+import ElectiveRequest from './ElectiveRequest.js';
 
 export {
     User,
@@ -11,5 +14,8 @@ export {
     Session,
     Attendance,
     AuditLog,
-    DeviceRegistry
+    DeviceRegistry,
+    Timetable,
+    ClaimRequest,
+    ElectiveRequest
 };

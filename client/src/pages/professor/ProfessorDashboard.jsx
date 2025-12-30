@@ -11,84 +11,68 @@ const ProfessorDashboard = () => {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
 
-    const [courses, setCourses] = useState([]);
+    const [claimedCourses, setClaimedCourses] = useState([]);
+    const [claimableCourses, setClaimableCourses] = useState([]);
+    const [myRequests, setMyRequests] = useState([]);
     const [pastSessions, setPastSessions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('claimed');
 
-    // Modal State
-    const [showCourseModal, setShowCourseModal] = useState(false);
+    // Session Modal State
     const [showSessionModal, setShowSessionModal] = useState(false);
-    const [newCourse, setNewCourse] = useState({
-        courseCode: '', courseName: '', branch: '', year: 1, semester: 1
-    });
-    const [newSession, setNewSession] = useState({
-        courseId: '', duration: 60, radius: 50
-    });
+    const [newSession, setNewSession] = useState({ courseId: '', duration: 60, radius: 50 });
     const [location, setLocation] = useState(null);
     const [locationError, setLocationError] = useState('');
     const [gettingLocation, setGettingLocation] = useState(false);
 
-    // Function to get location
+    // Claim Modal State
+    const [showClaimModal, setShowClaimModal] = useState(false);
+    const [selectedCourse, setSelectedCourse] = useState(null);
+    const [claimMessage, setClaimMessage] = useState('');
+
     const getLocation = useCallback(() => {
         setGettingLocation(true);
         setLocationError('');
-
         if (!navigator.geolocation) {
-            setLocationError('Geolocation is not supported by your browser');
+            setLocationError('Geolocation not supported');
             setGettingLocation(false);
             return;
         }
-
         navigator.geolocation.getCurrentPosition(
             pos => {
-                setLocation({
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude
-                });
+                setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
                 setGettingLocation(false);
             },
             err => {
-                console.error('Location error:', err);
-                let errorMsg = 'Unable to get location';
-                switch (err.code) {
-                    case err.PERMISSION_DENIED:
-                        errorMsg = 'Location permission denied. Please allow GPS access.';
-                        break;
-                    case err.POSITION_UNAVAILABLE:
-                        errorMsg = 'Location unavailable. Please check your GPS.';
-                        break;
-                    case err.TIMEOUT:
-                        errorMsg = 'Location request timed out. Try again.';
-                        break;
-                }
-                setLocationError(errorMsg);
+                setLocationError('Location permission denied');
                 setGettingLocation(false);
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 10000 }
         );
     }, []);
 
     useEffect(() => {
-        fetchCourses();
-        fetchSessions();
-        // Try to get location on load
+        fetchData();
         getLocation();
     }, []);
 
-    // Retry getting location when session modal opens
     useEffect(() => {
-        if (showSessionModal && !location) {
-            getLocation();
-        }
+        if (showSessionModal && !location) getLocation();
     }, [showSessionModal, location, getLocation]);
 
-    const fetchCourses = async () => {
+    const fetchData = async () => {
+        const headers = { Authorization: `Bearer ${token}` };
         try {
-            const res = await axios.get(`${API_URL}/courses`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setCourses(res.data.data || []);
+            const [coursesRes, claimableRes, requestsRes, sessionsRes] = await Promise.all([
+                axios.get(`${API_URL}/courses`, { headers }),
+                axios.get(`${API_URL}/courses/claimable`, { headers }).catch(() => ({ data: { data: [] } })),
+                axios.get(`${API_URL}/courses/my-requests`, { headers }).catch(() => ({ data: { data: [] } })),
+                axios.get(`${API_URL}/sessions/professor/history`, { headers }).catch(() => ({ data: { data: [] } }))
+            ]);
+            setClaimedCourses(coursesRes.data.data || []);
+            setClaimableCourses(claimableRes.data.data || []);
+            setMyRequests(requestsRes.data.data || []);
+            setPastSessions(sessionsRes.data.data || []);
         } catch (error) {
             console.error('Fetch error:', error);
         } finally {
@@ -96,39 +80,41 @@ const ProfessorDashboard = () => {
         }
     };
 
-    const fetchSessions = async () => {
+    const handleClaimCourse = async () => {
+        if (!selectedCourse) return;
         try {
-            setSessionsLoading(true);
-            const res = await axios.get(`${API_URL}/sessions/professor/history`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setPastSessions(res.data.data || []);
+            await axios.post(`${API_URL}/courses/${selectedCourse._id}/claim`,
+                { message: claimMessage },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Claim request sent! Awaiting admin approval.');
+            setShowClaimModal(false);
+            setSelectedCourse(null);
+            setClaimMessage('');
+            fetchData();
         } catch (error) {
-            console.error('Fetch sessions error:', error);
-        } finally {
-            setSessionsLoading(false);
+            toast.error(error.response?.data?.error || 'Failed to send claim request');
         }
     };
 
-    const handleCreateCourse = async (e) => {
-        e.preventDefault();
+    const handleUnclaimCourse = async (course) => {
+        if (!confirm(`Request to unclaim "${course.courseName}"?`)) return;
         try {
-            await axios.post(`${API_URL}/courses`, newCourse, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setShowCourseModal(false);
-            setNewCourse({ courseCode: '', courseName: '', branch: 'CSE', year: 1, semester: 1 });
-            fetchCourses();
-            toast.success('Course created successfully!');
+            await axios.post(`${API_URL}/courses/${course._id}/unclaim`,
+                { message: 'Requesting to unclaim this course' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Unclaim request sent! Awaiting admin approval.');
+            fetchData();
         } catch (error) {
-            toast.error(error.response?.data?.error || 'Failed to create course');
+            toast.error(error.response?.data?.error || 'Failed to send unclaim request');
         }
     };
 
     const handleStartSession = async (e) => {
         e.preventDefault();
         if (!location) {
-            toast.error('Location not available. Please allow GPS.');
+            toast.error('Location not available');
             return;
         }
         try {
@@ -138,63 +124,27 @@ const ProfessorDashboard = () => {
                 radius: newSession.radius,
                 centerLat: location.lat,
                 centerLng: location.lng
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            }, { headers: { Authorization: `Bearer ${token}` } });
             setShowSessionModal(false);
-            toast.success('Session started successfully!');
+            toast.success('Session started!');
             navigate(`/professor/session/${res.data.data._id}`);
         } catch (error) {
             toast.error(error.response?.data?.error || 'Failed to start session');
         }
     };
 
-    const handleDeleteCourse = async (courseId, courseName) => {
-        const confirmMsg = `Delete "${courseName}"?\n\nThis will:\n- Permanently delete if no sessions exist\n- Archive if sessions exist (can be restored later)\n\nContinue?`;
-
-        if (!confirm(confirmMsg)) return;
-
-        try {
-            // Try permanent delete first
-            const res = await axios.delete(`${API_URL}/courses/${courseId}?permanent=true`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            toast.success(res.data.message);
-            fetchCourses();
-        } catch (error) {
-            if (error.response?.status === 400 && error.response?.data?.sessionCount) {
-                // Has sessions - archive instead
-                const archiveConfirm = confirm(
-                    `This course has ${error.response.data.sessionCount} session(s).\n\nWould you like to archive it instead?`
-                );
-
-                if (archiveConfirm) {
-                    try {
-                        const archiveRes = await axios.delete(`${API_URL}/courses/${courseId}`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
-                        toast.success(archiveRes.data.message);
-                        fetchCourses();
-                    } catch (archiveError) {
-                        toast.error(archiveError.response?.data?.error || 'Failed to archive course');
-                    }
-                }
-            } else {
-                toast.error(error.response?.data?.error || 'Failed to delete course');
-            }
-        }
-    };
+    const pendingRequests = myRequests.filter(r => r.status === 'pending');
 
     return (
         <div className="dashboard-page">
             <header className="dashboard-header">
                 <div className="header-left">
-                    <h1>Professor Dashboard</h1>
+                    <h1>👨‍🏫 Professor Dashboard</h1>
                     <p>Welcome, {user?.name}</p>
                 </div>
                 <div className="header-right">
                     <ThemeToggle />
-                    <button className="btn btn-primary" onClick={() => setShowSessionModal(true)}>
+                    <button className="btn btn-primary" onClick={() => setShowSessionModal(true)} disabled={claimedCourses.length === 0}>
                         + Start Session
                     </button>
                     <button className="btn btn-ghost" onClick={() => { logout(); navigate('/'); }}>Logout</button>
@@ -202,161 +152,194 @@ const ProfessorDashboard = () => {
             </header>
 
             <main className="dashboard-content">
-                <div className="courses-section card">
-                    <div className="section-header">
-                        <h2>My Courses</h2>
-                        <button className="btn btn-sm btn-secondary" onClick={() => setShowCourseModal(true)}>+ New Course</button>
-                    </div>
-
-                    {loading ? (
-                        <div className="spinner"></div>
-                    ) : courses.length === 0 ? (
-                        <p className="empty-state">No courses yet. Create your first course!</p>
-                    ) : (
-                        <div className="courses-grid">
-                            {courses.map(course => (
-                                <div key={course._id} className="course-card">
-                                    <span className="course-code">{course.courseCode}</span>
-                                    <h3>{course.courseName}</h3>
-                                    <p>{course.branch} - Year {course.year}, Sem {course.semester}</p>
-                                    <div className="course-actions">
-                                        <button
-                                            className="btn btn-sm btn-primary"
-                                            onClick={() => {
-                                                setNewSession({ ...newSession, courseId: course._id });
-                                                setShowSessionModal(true);
-                                            }}
-                                        >
-                                            ▶ Start Session
-                                        </button>
-                                        <button
-                                            className="btn btn-sm btn-secondary"
-                                            onClick={() => navigate(`/professor/course/${course._id}/attendance`)}
-                                        >
-                                            📊 Attendance
-                                        </button>
-                                        <button
-                                            className="btn btn-sm btn-danger"
-                                            onClick={() => handleDeleteCourse(course._id, course.courseName)}
-                                            title="Delete course"
-                                        >
-                                            🗑
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                {/* Tab Navigation */}
+                <div className="tab-nav">
+                    <button className={`tab-btn ${activeTab === 'claimed' ? 'active' : ''}`} onClick={() => setActiveTab('claimed')}>
+                        My Courses ({claimedCourses.length})
+                    </button>
+                    <button className={`tab-btn ${activeTab === 'claimable' ? 'active' : ''}`} onClick={() => setActiveTab('claimable')}>
+                        Browse Courses ({claimableCourses.length})
+                    </button>
+                    <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+                        My Requests {pendingRequests.length > 0 && <span className="badge">{pendingRequests.length}</span>}
+                    </button>
                 </div>
 
-                {/* Session History Section */}
-                <div className="sessions-section card" style={{ marginTop: '2rem' }}>
-                    <div className="section-header">
-                        <h2>📜 Recent Sessions</h2>
-                        <button className="btn btn-sm btn-ghost" onClick={fetchSessions}>Refresh</button>
-                    </div>
+                {loading ? (
+                    <div className="loading-center"><div className="spinner"></div></div>
+                ) : (
+                    <>
+                        {/* Claimed Courses Tab */}
+                        {activeTab === 'claimed' && (
+                            <div className="courses-section card">
+                                <h2>📚 My Claimed Courses</h2>
+                                {claimedCourses.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>You haven't claimed any courses yet.</p>
+                                        <button className="btn btn-primary" onClick={() => setActiveTab('claimable')}>
+                                            Browse Courses to Claim
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="courses-grid">
+                                        {claimedCourses.map(course => (
+                                            <div key={course._id} className="course-card">
+                                                <span className="course-code">{course.courseCode}</span>
+                                                <h3>{course.courseName}</h3>
+                                                <p className="course-meta">
+                                                    {course.branch?.toUpperCase()} - Year {course.year}, Sem {course.semester}
+                                                </p>
+                                                {course.schedule && (
+                                                    <p className="course-schedule">
+                                                        📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
+                                                    </p>
+                                                )}
+                                                <div className="course-actions">
+                                                    <button className="btn btn-sm btn-primary" onClick={() => {
+                                                        setNewSession({ ...newSession, courseId: course._id });
+                                                        setShowSessionModal(true);
+                                                    }}>
+                                                        ▶ Start Session
+                                                    </button>
+                                                    <button className="btn btn-sm btn-secondary" onClick={() => navigate(`/professor/course/${course._id}/attendance`)}>
+                                                        📊 Attendance
+                                                    </button>
+                                                    <button className="btn btn-sm btn-ghost" onClick={() => handleUnclaimCourse(course)}>
+                                                        ✕ Unclaim
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                    {sessionsLoading ? (
-                        <div className="spinner"></div>
-                    ) : pastSessions.length === 0 ? (
-                        <p className="empty-state">No past sessions found.</p>
-                    ) : (
-                        <div className="sessions-list">
-                            {pastSessions.map(session => (
-                                <div key={session._id} className="session-item" onClick={() => navigate(`/professor/session/${session._id}`)}>
-                                    <div className="session-info">
-                                        <h4>{session.course?.courseName || 'Unknown Course'}</h4>
-                                        <p className="session-date">
-                                            {new Date(session.startTime).toLocaleDateString()} • {new Date(session.startTime).toLocaleTimeString()}
-                                        </p>
+                        {/* Claimable Courses Tab */}
+                        {activeTab === 'claimable' && (
+                            <div className="courses-section card">
+                                <h2>🔍 Available Courses to Claim</h2>
+                                {claimableCourses.length === 0 ? (
+                                    <p className="empty-state">No new courses available to claim.</p>
+                                ) : (
+                                    <div className="courses-grid">
+                                        {claimableCourses.map(course => (
+                                            <div key={course._id} className="course-card claimable">
+                                                <span className="course-code">{course.courseCode}</span>
+                                                <h3>{course.courseName}</h3>
+                                                <p className="course-meta">
+                                                    {course.branch?.toUpperCase()} - Year {course.year}, Sem {course.semester}
+                                                </p>
+                                                {course.schedule && (
+                                                    <p className="course-schedule">
+                                                        📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
+                                                        {course.schedule.room && ` | 🚪 ${course.schedule.room}`}
+                                                    </p>
+                                                )}
+                                                {course.claimedBy?.length > 0 && (
+                                                    <p className="other-professors">
+                                                        Also claimed by: {course.claimedBy.map(p => p.name).join(', ')}
+                                                    </p>
+                                                )}
+                                                <div className="course-actions">
+                                                    <button className="btn btn-success" onClick={() => {
+                                                        setSelectedCourse(course);
+                                                        setShowClaimModal(true);
+                                                    }}>
+                                                        🙋 Claim This Course
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="session-stats">
-                                        <span className={`status-badge ${session.isActive ? 'active' : 'ended'}`}>
-                                            {session.isActive ? 'LIVE' : 'ENDED'}
-                                        </span>
-                                        <span className="attendance-count">
-                                            👥 {session.attendanceCount || 0}
-                                        </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* My Requests Tab */}
+                        {activeTab === 'requests' && (
+                            <div className="requests-section card">
+                                <h2>📝 My Claim Requests</h2>
+                                {myRequests.length === 0 ? (
+                                    <p className="empty-state">No pending requests.</p>
+                                ) : (
+                                    <div className="requests-list">
+                                        {myRequests.map(req => (
+                                            <div key={req._id} className={`request-item ${req.status}`}>
+                                                <div className="request-info">
+                                                    <strong>{req.type === 'claim' ? '🙋 Claim' : '✕ Unclaim'}: {req.course?.courseCode}</strong>
+                                                    <span>{req.course?.courseName}</span>
+                                                </div>
+                                                <span className={`status-badge ${req.status}`}>
+                                                    {req.status.toUpperCase()}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Recent Sessions */}
+                        <div className="sessions-section card">
+                            <h2>📜 Recent Sessions</h2>
+                            {pastSessions.length === 0 ? (
+                                <p className="empty-state">No past sessions.</p>
+                            ) : (
+                                <div className="sessions-list">
+                                    {pastSessions.slice(0, 5).map(session => (
+                                        <div key={session._id} className="session-item" onClick={() => navigate(`/professor/session/${session._id}`)}>
+                                            <div className="session-info">
+                                                <h4>{session.course?.courseName || 'Course'}</h4>
+                                                <p>{new Date(session.startTime).toLocaleDateString()} • {new Date(session.startTime).toLocaleTimeString()}</p>
+                                            </div>
+                                            <div className="session-stats">
+                                                <span className={`status-badge ${session.isActive ? 'active' : 'ended'}`}>
+                                                    {session.isActive ? 'LIVE' : 'ENDED'}
+                                                </span>
+                                                <span>👥 {session.stats?.total || 0}</span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            )}
                         </div>
-                    )}
-                </div>
+                    </>
+                )}
             </main>
 
-            {/* Course Modal */}
-            {showCourseModal && (
-                <div className="modal-overlay" onClick={() => setShowCourseModal(false)}>
+            {/* Claim Course Modal */}
+            {showClaimModal && selectedCourse && (
+                <div className="modal-overlay" onClick={() => setShowClaimModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
-                        <h2>Create Course</h2>
-                        <form onSubmit={handleCreateCourse}>
-                            <input
-                                placeholder="Course Code (e.g. CS101)"
-                                value={newCourse.courseCode}
-                                onChange={e => setNewCourse({ ...newCourse, courseCode: e.target.value })}
-                                required
-                                className="form-input"
-                            />
-                            <input
-                                placeholder="Course Name"
-                                value={newCourse.courseName}
-                                onChange={e => setNewCourse({ ...newCourse, courseName: e.target.value })}
-                                required
-                                className="form-input"
-                            />
-                            <select
-                                value={newCourse.branch}
-                                onChange={e => setNewCourse({ ...newCourse, branch: e.target.value })}
-                                className="form-input"
-                                required
-                            >
-                                <option value="">Select Branch</option>
-                                <option value="UCP">UCP - Computer Science</option>
-                                <option value="UEC">UEC - Electronics & Comm</option>
-                                <option value="UEE">UEE - Electrical</option>
-                                <option value="UME">UME - Mechanical</option>
-                                <option value="UCE">UCE - Civil</option>
-                            </select>
-                            <div className="form-row">
-                                <input
-                                    type="number"
-                                    placeholder="Year"
-                                    value={newCourse.year}
-                                    onChange={e => setNewCourse({ ...newCourse, year: parseInt(e.target.value) })}
-                                    min="1" max="4"
-                                    className="form-input"
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Semester"
-                                    value={newCourse.semester}
-                                    onChange={e => setNewCourse({ ...newCourse, semester: parseInt(e.target.value) })}
-                                    min="1" max="8"
-                                    className="form-input"
-                                />
-                            </div>
-                            <div className="modal-actions">
-                                <button type="submit" className="btn btn-primary">Create</button>
-                                <button type="button" className="btn btn-ghost" onClick={() => setShowCourseModal(false)}>Cancel</button>
-                            </div>
-                        </form>
+                        <h2>Claim Course</h2>
+                        <p>Request to claim <strong>{selectedCourse.courseCode} - {selectedCourse.courseName}</strong></p>
+                        <textarea
+                            placeholder="Optional message for admin..."
+                            value={claimMessage}
+                            onChange={e => setClaimMessage(e.target.value)}
+                            className="form-input"
+                            rows={3}
+                        />
+                        <div className="modal-actions">
+                            <button className="btn btn-success" onClick={handleClaimCourse}>Send Claim Request</button>
+                            <button className="btn btn-ghost" onClick={() => setShowClaimModal(false)}>Cancel</button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Session Modal */}
+            {/* Start Session Modal */}
             {showSessionModal && (
                 <div className="modal-overlay" onClick={() => setShowSessionModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <h2>Start Live Session</h2>
-                        {courses.length === 0 ? (
+                        {claimedCourses.length === 0 ? (
                             <div>
-                                <p>You need to create a course first.</p>
-                                <button className="btn btn-primary" onClick={() => {
-                                    setShowSessionModal(false);
-                                    setShowCourseModal(true);
-                                }}>Create Course</button>
+                                <p>You need to claim a course first.</p>
+                                <button className="btn btn-primary" onClick={() => { setShowSessionModal(false); setActiveTab('claimable'); }}>
+                                    Browse Courses
+                                </button>
                             </div>
                         ) : (
                             <form onSubmit={handleStartSession}>
@@ -367,8 +350,8 @@ const ProfessorDashboard = () => {
                                     className="form-input"
                                 >
                                     <option value="">Select Course</option>
-                                    {courses.map(c => (
-                                        <option key={c._id} value={c._id}>{c.courseName}</option>
+                                    {claimedCourses.map(c => (
+                                        <option key={c._id} value={c._id}>{c.courseCode} - {c.courseName}</option>
                                     ))}
                                 </select>
                                 <input
@@ -380,24 +363,15 @@ const ProfessorDashboard = () => {
                                 />
                                 <div className="location-status">
                                     {location ? (
-                                        <span className="location-ok">📍 Location acquired ({location.lat.toFixed(4)}, {location.lng.toFixed(4)})</span>
+                                        <span className="location-ok">📍 Location acquired</span>
                                     ) : gettingLocation ? (
                                         <span className="location-pending">📍 Getting location...</span>
-                                    ) : locationError ? (
-                                        <div className="location-error">
-                                            <span>❌ {locationError}</span>
-                                            <button type="button" className="btn btn-sm" onClick={getLocation}>Retry</button>
-                                        </div>
                                     ) : (
-                                        <button type="button" className="btn btn-secondary" onClick={getLocation}>
-                                            📍 Get Location
-                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={getLocation}>📍 Get Location</button>
                                     )}
                                 </div>
                                 <div className="modal-actions">
-                                    <button type="submit" className="btn btn-success" disabled={!location || gettingLocation}>
-                                        {gettingLocation ? 'Getting Location...' : 'Start Class'}
-                                    </button>
+                                    <button type="submit" className="btn btn-success" disabled={!location}>Start Class</button>
                                     <button type="button" className="btn btn-ghost" onClick={() => setShowSessionModal(false)}>Cancel</button>
                                 </div>
                             </form>

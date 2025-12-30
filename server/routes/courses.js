@@ -1,11 +1,15 @@
 import express from 'express';
 import {
-    createCourse,
     getCourses,
+    getClaimableCourses,
     getCourse,
+    claimCourse,
+    unclaimCourse,
+    getMyClaimRequests,
     updateCourse,
-    deleteCourse,
-    getStudentCourses
+    getStudentCourses,
+    getStudentTimetable,
+    requestElective
 } from '../controllers/courseController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -13,17 +17,29 @@ const router = express.Router();
 
 router.use(protect);
 
-// Student Route
+// ============================================
+// STUDENT ROUTES
+// ============================================
 router.get('/my-courses', authorize('student'), getStudentCourses);
+router.get('/my-timetable', authorize('student'), getStudentTimetable);
+router.post('/:id/request-elective', authorize('student'), requestElective);
 
-// Professor Routes
-router.route('/')
-    .get(authorize('professor', 'admin'), getCourses)
-    .post(authorize('professor', 'admin'), createCourse);
+// ============================================
+// PROFESSOR ROUTES
+// ============================================
+// Get claimed courses and claimable courses
+router.get('/', authorize('professor', 'admin'), getCourses);
+router.get('/claimable', authorize('professor'), getClaimableCourses);
+router.get('/my-requests', authorize('professor'), getMyClaimRequests);
 
-router.route('/:id')
-    .get(authorize('professor', 'admin'), getCourse)
-    .put(authorize('professor', 'admin'), updateCourse)
-    .delete(authorize('professor', 'admin'), deleteCourse);
+// Course claiming
+router.post('/:id/claim', authorize('professor'), claimCourse);
+router.post('/:id/unclaim', authorize('professor'), unclaimCourse);
+
+// Course details and updates (for claimed courses)
+router.get('/:id', authorize('professor', 'admin'), getCourse);
+router.put('/:id', authorize('professor', 'admin'), updateCourse);
+
+// Note: Course creation and deletion moved to /api/admin/courses (Admin only)
 
 export default router;

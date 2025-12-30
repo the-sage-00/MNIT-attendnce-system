@@ -82,9 +82,10 @@ export const studentGoogleLogin = async (req, res) => {
                 rollNo: identity.rollNo,
                 branch: identity.branchName,
                 branchCode: identity.branchCode,
-                admissionYear: identity.admissionYear
+                admissionYear: identity.admissionYear,
+                pendingReview: identity.needsReview || false // Flag for admin review if non-standard branch
             });
-            console.log(`New student registered: ${email}`);
+            console.log(`New student registered: ${email}${identity.needsReview ? ' (pending review)' : ''}`);
         }
 
         // Verify user is a student

@@ -5,6 +5,7 @@ import {
     getSessionQR,
     forceRefreshQR,
     stopSession,
+    cancelSession,
     getStudentSessionInfo,
     getActiveSessions,
     getSessionHistory,
@@ -51,5 +52,8 @@ router.put('/:id/settings', authorize('professor', 'admin'), updateSessionSettin
 
 // Stop session
 router.put('/:id/stop', authorize('professor', 'admin'), stopSession);
+
+// Cancel session (professor can cancel before session ends)
+router.delete('/:id', authorize('professor'), cancelSession);
 
 export default router;
