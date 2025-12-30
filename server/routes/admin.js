@@ -5,6 +5,7 @@ import {
     approveProfessor,
     // Course management
     createCourse,
+    bulkImportCourses,
     getAllCourses,
     updateCourse,
     deleteCourse,
@@ -48,6 +49,7 @@ router.put('/approve-professor/:id', approveProfessor);
 // COURSE MANAGEMENT (NEW - Admin creates courses)
 // ============================================
 router.post('/courses', createCourse);
+router.post('/courses/bulk', bulkImportCourses);
 router.get('/courses', getAllCourses);
 router.put('/courses/:id', updateCourse);
 router.delete('/courses/:id', deleteCourse);

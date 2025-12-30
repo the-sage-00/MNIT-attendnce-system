@@ -116,6 +116,144 @@ export const createCourse = async (req, res) => {
 };
 
 /**
+ * @route   POST /api/admin/courses/bulk
+ * @desc    Bulk import courses from JSON timetable
+ * @access  Private (Admin)
+ * 
+ * Expected JSON format:
+ * {
+ *   "courses": [
+ *     {
+ *       "courseCode": "CS101",
+ *       "courseName": "Data Structures",
+ *       "branch": "ucs",
+ *       "year": 2,
+ *       "semester": 3,
+ *       "schedule": { "day": "Monday", "startTime": "09:00", "endTime": "10:00", "room": "LH-101" }
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+export const bulkImportCourses = async (req, res) => {
+    try {
+        const { courses } = req.body;
+
+        if (!courses || !Array.isArray(courses) || courses.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'courses array is required in the request body'
+            });
+        }
+
+        const validBranches = ['uch', 'ucs', 'uce', 'uec', 'uee', 'ume', 'umt'];
+        const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        const results = {
+            created: [],
+            failed: [],
+            skipped: []
+        };
+
+        for (const courseData of courses) {
+            try {
+                const { courseCode, courseName, branch, year, semester, schedule, description } = courseData;
+
+                // Validate required fields
+                if (!courseCode || !courseName || !branch || !year || !semester) {
+                    results.failed.push({
+                        courseCode: courseCode || 'unknown',
+                        error: 'Missing required fields (courseCode, courseName, branch, year, semester)'
+                    });
+                    continue;
+                }
+
+                // Validate branch
+                if (!validBranches.includes(branch.toLowerCase())) {
+                    results.failed.push({
+                        courseCode,
+                        error: `Invalid branch code. Must be one of: ${validBranches.join(', ')}`
+                    });
+                    continue;
+                }
+
+                // Validate year
+                if (year < 1 || year > 4) {
+                    results.failed.push({ courseCode, error: 'Year must be between 1 and 4' });
+                    continue;
+                }
+
+                // Validate semester
+                if (semester < 1 || semester > 8) {
+                    results.failed.push({ courseCode, error: 'Semester must be between 1 and 8' });
+                    continue;
+                }
+
+                // Validate schedule day if provided
+                if (schedule?.day && !validDays.includes(schedule.day)) {
+                    results.failed.push({
+                        courseCode,
+                        error: `Invalid day. Must be one of: ${validDays.join(', ')}`
+                    });
+                    continue;
+                }
+
+                // Check if course already exists
+                const existingCourse = await Course.findOne({
+                    courseCode: courseCode.toUpperCase(),
+                    branch: branch.toLowerCase(),
+                    year,
+                    semester
+                });
+
+                if (existingCourse) {
+                    results.skipped.push({
+                        courseCode,
+                        reason: 'Course already exists for this branch/year/semester'
+                    });
+                    continue;
+                }
+
+                // Create the course
+                const newCourse = await Course.create({
+                    courseCode: courseCode.toUpperCase(),
+                    courseName,
+                    description: description || '',
+                    branch: branch.toLowerCase(),
+                    year,
+                    semester,
+                    schedule: schedule || {},
+                    createdBy: req.user._id,
+                    claimedBy: []
+                });
+
+                results.created.push({
+                    courseCode: newCourse.courseCode,
+                    courseName: newCourse.courseName,
+                    _id: newCourse._id
+                });
+
+            } catch (courseError) {
+                results.failed.push({
+                    courseCode: courseData.courseCode || 'unknown',
+                    error: courseError.message
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Import complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.failed.length} failed`,
+            data: results
+        });
+
+    } catch (error) {
+        console.error('Bulk Import Error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Server Error' });
+    }
+};
+
+/**
  * @route   GET /api/admin/courses
  * @desc    Get all courses (Admin view with claim status)
  * @access  Private (Admin)

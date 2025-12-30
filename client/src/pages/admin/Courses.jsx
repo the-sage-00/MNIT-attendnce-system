@@ -19,32 +19,61 @@ const BRANCH_OPTIONS = [
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const SAMPLE_JSON = `{
+  "courses": [
+    {
+      "courseCode": "CS101",
+      "courseName": "Data Structures",
+      "branch": "ucs",
+      "year": 2,
+      "semester": 3,
+      "schedule": {
+        "day": "Monday",
+        "startTime": "09:00",
+        "endTime": "10:00",
+        "room": "LH-101"
+      }
+    },
+    {
+      "courseCode": "CS102",
+      "courseName": "Algorithms",
+      "branch": "ucs",
+      "year": 2,
+      "semester": 3,
+      "schedule": {
+        "day": "Tuesday",
+        "startTime": "10:00",
+        "endTime": "11:00",
+        "room": "LH-102"
+      }
+    }
+  ]
+}`;
+
 const AdminCourses = () => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [modalTab, setModalTab] = useState('single'); // 'single' or 'bulk'
     const [editingCourse, setEditingCourse] = useState(null);
     const [filter, setFilter] = useState({ branch: '', year: '', claimed: '' });
 
+    // Single course form
     const [formData, setFormData] = useState({
-        courseCode: '',
-        courseName: '',
-        description: '',
-        branch: '',
-        year: 1,
-        semester: 1,
+        courseCode: '', courseName: '', description: '', branch: '', year: 1, semester: 1,
         schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
-        defaultDuration: 60,
-        lateThreshold: 15
+        defaultDuration: 60, lateThreshold: 15
     });
+
+    // Bulk import
+    const [jsonInput, setJsonInput] = useState('');
+    const [importResult, setImportResult] = useState(null);
     const [saving, setSaving] = useState(false);
 
     const { token, logout } = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchCourses();
-    }, [filter]);
+    useEffect(() => { fetchCourses(); }, [filter]);
 
     const fetchCourses = async () => {
         try {
@@ -52,42 +81,30 @@ const AdminCourses = () => {
             if (filter.branch) params.append('branch', filter.branch);
             if (filter.year) params.append('year', filter.year);
             if (filter.claimed) params.append('claimed', filter.claimed);
-
             const res = await axios.get(`${API_URL}/admin/courses?${params}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCourses(res.data.data);
         } catch (err) {
-            if (err.response?.status === 401) {
-                logout();
-                navigate('/admin/login');
-            } else {
-                toast.error('Failed to fetch courses');
-            }
-        } finally {
-            setLoading(false);
-        }
+            if (err.response?.status === 401) { logout(); navigate('/admin/login'); }
+            else toast.error('Failed to fetch courses');
+        } finally { setLoading(false); }
     };
 
     const resetForm = () => {
         setFormData({
-            courseCode: '',
-            courseName: '',
-            description: '',
-            branch: '',
-            year: 1,
-            semester: 1,
+            courseCode: '', courseName: '', description: '', branch: '', year: 1, semester: 1,
             schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
-            defaultDuration: 60,
-            lateThreshold: 15
+            defaultDuration: 60, lateThreshold: 15
         });
         setEditingCourse(null);
+        setJsonInput('');
+        setImportResult(null);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-
         try {
             if (editingCourse) {
                 await axios.put(`${API_URL}/admin/courses/${editingCourse._id}`, formData, {
@@ -105,52 +122,59 @@ const AdminCourses = () => {
             fetchCourses();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to save course');
-        } finally {
-            setSaving(false);
-        }
+        } finally { setSaving(false); }
+    };
+
+    const handleBulkImport = async () => {
+        setSaving(true);
+        setImportResult(null);
+        try {
+            const parsed = JSON.parse(jsonInput);
+            const res = await axios.post(`${API_URL}/admin/courses/bulk`, parsed, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setImportResult(res.data.data);
+            toast.success(res.data.message);
+            fetchCourses();
+        } catch (err) {
+            if (err instanceof SyntaxError) {
+                toast.error('Invalid JSON format. Please check your input.');
+            } else {
+                toast.error(err.response?.data?.error || 'Bulk import failed');
+            }
+        } finally { setSaving(false); }
     };
 
     const handleEdit = (course) => {
         setFormData({
-            courseCode: course.courseCode,
-            courseName: course.courseName,
-            description: course.description || '',
-            branch: course.branch,
-            year: course.year,
-            semester: course.semester,
+            courseCode: course.courseCode, courseName: course.courseName,
+            description: course.description || '', branch: course.branch,
+            year: course.year, semester: course.semester,
             schedule: course.schedule || { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
-            defaultDuration: course.defaultDuration || 60,
-            lateThreshold: course.lateThreshold || 15
+            defaultDuration: course.defaultDuration || 60, lateThreshold: course.lateThreshold || 15
         });
         setEditingCourse(course);
+        setModalTab('single');
         setShowModal(true);
     };
 
     const handleDelete = async (course) => {
-        if (!confirm(`Are you sure you want to archive "${course.courseName}"?`)) return;
+        if (!confirm(`Archive "${course.courseName}"?`)) return;
         try {
             await axios.delete(`${API_URL}/admin/courses/${course._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.success('Course archived');
             fetchCourses();
-        } catch (err) {
-            toast.error(err.response?.data?.error || 'Failed to archive course');
-        }
+        } catch (err) { toast.error(err.response?.data?.error || 'Failed to archive'); }
     };
 
-    const getBranchName = (code) => {
-        const branch = BRANCH_OPTIONS.find(b => b.code === code);
-        return branch ? branch.name : code?.toUpperCase();
-    };
+    const getBranchName = (code) => BRANCH_OPTIONS.find(b => b.code === code)?.name || code?.toUpperCase();
 
     if (loading) {
         return (
             <div className="courses-page">
-                <div className="loading-container">
-                    <div className="spinner spinner-lg"></div>
-                    <p>Loading courses...</p>
-                </div>
+                <div className="loading-container"><div className="spinner spinner-lg"></div><p>Loading courses...</p></div>
             </div>
         );
     }
@@ -164,43 +188,30 @@ const AdminCourses = () => {
                 </div>
                 <div className="header-actions">
                     <ThemeToggle />
-                    <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
+                    <button className="btn btn-primary" onClick={() => { resetForm(); setModalTab('single'); setShowModal(true); }}>
                         + Create Course
                     </button>
-                    <button className="btn btn-secondary" onClick={() => navigate('/admin/dashboard')}>
-                        ← Dashboard
+                    <button className="btn btn-success" onClick={() => { resetForm(); setModalTab('bulk'); setShowModal(true); }}>
+                        📥 Bulk Import
                     </button>
+                    <button className="btn btn-secondary" onClick={() => navigate('/admin/dashboard')}>← Dashboard</button>
                 </div>
             </header>
 
             {/* Filters */}
             <div className="filters-bar">
-                <select
-                    value={filter.branch}
-                    onChange={(e) => setFilter({ ...filter, branch: e.target.value })}
-                    className="filter-select"
-                >
+                <select value={filter.branch} onChange={(e) => setFilter({ ...filter, branch: e.target.value })} className="filter-select">
                     <option value="">All Branches</option>
-                    {BRANCH_OPTIONS.map(b => (
-                        <option key={b.code} value={b.code}>{b.name}</option>
-                    ))}
+                    {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
                 </select>
-                <select
-                    value={filter.year}
-                    onChange={(e) => setFilter({ ...filter, year: e.target.value })}
-                    className="filter-select"
-                >
+                <select value={filter.year} onChange={(e) => setFilter({ ...filter, year: e.target.value })} className="filter-select">
                     <option value="">All Years</option>
                     <option value="1">1st Year</option>
                     <option value="2">2nd Year</option>
                     <option value="3">3rd Year</option>
                     <option value="4">4th Year</option>
                 </select>
-                <select
-                    value={filter.claimed}
-                    onChange={(e) => setFilter({ ...filter, claimed: e.target.value })}
-                    className="filter-select"
-                >
+                <select value={filter.claimed} onChange={(e) => setFilter({ ...filter, claimed: e.target.value })} className="filter-select">
                     <option value="">All Status</option>
                     <option value="true">Claimed</option>
                     <option value="false">Unclaimed</option>
@@ -214,10 +225,8 @@ const AdminCourses = () => {
                     <div className="empty-state">
                         <div className="empty-icon">📚</div>
                         <h3>No courses found</h3>
-                        <p>Create your first course or adjust filters</p>
-                        <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
-                            Create Course
-                        </button>
+                        <p>Create your first course or use bulk import</p>
+                        <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>Create Course</button>
                     </div>
                 ) : (
                     courses.map(course => (
@@ -236,190 +245,193 @@ const AdminCourses = () => {
                                 <span className="meta-item">Year {course.year}</span>
                                 <span className="meta-item">Sem {course.semester}</span>
                             </div>
-                            {course.schedule && (
+                            {course.schedule?.day && (
                                 <div className="course-schedule">
                                     📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
                                     {course.schedule.room && <span> | 🚪 {course.schedule.room}</span>}
                                 </div>
                             )}
                             {course.claimedBy?.length > 0 && (
-                                <div className="claimed-by">
-                                    👨‍🏫 {course.claimedBy.map(p => p.name).join(', ')}
-                                </div>
+                                <div className="claimed-by">👨‍🏫 {course.claimedBy.map(p => p.name).join(', ')}</div>
                             )}
                             <div className="course-actions">
-                                <button className="btn btn-sm btn-secondary" onClick={() => handleEdit(course)}>
-                                    ✏️ Edit
-                                </button>
-                                <button className="btn btn-sm btn-ghost" onClick={() => navigate(`/admin/courses/${course._id}`)}>
-                                    📊 Details
-                                </button>
-                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(course)}>
-                                    🗑️
-                                </button>
+                                <button className="btn btn-sm btn-secondary" onClick={() => handleEdit(course)}>✏️ Edit</button>
+                                <button className="btn btn-sm btn-ghost" onClick={() => navigate(`/admin/courses/${course._id}`)}>📊 Details</button>
+                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(course)}>🗑️</button>
                             </div>
                         </div>
                     ))
                 )}
             </div>
 
-            {/* Create/Edit Course Modal */}
+            {/* Create/Edit/Bulk Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+                    <div className="modal modal-lg modal-scrollable" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>{editingCourse ? 'Edit Course' : 'Create New Course'}</h2>
+                            <h2>{editingCourse ? 'Edit Course' : 'Add Courses'}</h2>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Course Code *</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="e.g., CS101"
-                                        value={formData.courseCode}
-                                        onChange={e => setFormData({ ...formData, courseCode: e.target.value })}
-                                        required
-                                        disabled={!!editingCourse}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Course Name *</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="e.g., Data Structures"
-                                        value={formData.courseName}
-                                        onChange={e => setFormData({ ...formData, courseName: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Branch *</label>
-                                    <select
-                                        className="form-input"
-                                        value={formData.branch}
-                                        onChange={e => setFormData({ ...formData, branch: e.target.value })}
-                                        required
-                                        disabled={!!editingCourse}
-                                    >
-                                        <option value="">Select Branch</option>
-                                        {BRANCH_OPTIONS.map(b => (
-                                            <option key={b.code} value={b.code}>{b.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Year *</label>
-                                    <select
-                                        className="form-input"
-                                        value={formData.year}
-                                        onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                                        required
-                                        disabled={!!editingCourse}
-                                    >
-                                        <option value={1}>1st Year</option>
-                                        <option value={2}>2nd Year</option>
-                                        <option value={3}>3rd Year</option>
-                                        <option value={4}>4th Year</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Semester *</label>
-                                    <select
-                                        className="form-input"
-                                        value={formData.semester}
-                                        onChange={e => setFormData({ ...formData, semester: parseInt(e.target.value) })}
-                                        required
-                                    >
-                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                                            <option key={s} value={s}>Semester {s}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Description</label>
-                                <textarea
-                                    className="form-input"
-                                    placeholder="Course description..."
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    rows={2}
-                                />
-                            </div>
-
-                            <div className="form-section">
-                                <h4>📅 Schedule</h4>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label className="form-label">Day</label>
-                                        <select
-                                            className="form-input"
-                                            value={formData.schedule.day}
-                                            onChange={e => setFormData({
-                                                ...formData,
-                                                schedule: { ...formData.schedule, day: e.target.value }
-                                            })}
-                                        >
-                                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Start Time</label>
-                                        <input
-                                            type="time"
-                                            className="form-input"
-                                            value={formData.schedule.startTime}
-                                            onChange={e => setFormData({
-                                                ...formData,
-                                                schedule: { ...formData.schedule, startTime: e.target.value }
-                                            })}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">End Time</label>
-                                        <input
-                                            type="time"
-                                            className="form-input"
-                                            value={formData.schedule.endTime}
-                                            onChange={e => setFormData({
-                                                ...formData,
-                                                schedule: { ...formData.schedule, endTime: e.target.value }
-                                            })}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Room</label>
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="e.g., LH-101"
-                                            value={formData.schedule.room}
-                                            onChange={e => setFormData({
-                                                ...formData,
-                                                schedule: { ...formData.schedule, room: e.target.value }
-                                            })}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                                    Cancel
+                        {/* Tab Switcher (only for new courses) */}
+                        {!editingCourse && (
+                            <div className="modal-tabs">
+                                <button className={`modal-tab ${modalTab === 'single' ? 'active' : ''}`} onClick={() => setModalTab('single')}>
+                                    Single Course
                                 </button>
-                                <button type="submit" className="btn btn-primary" disabled={saving}>
-                                    {saving ? 'Saving...' : (editingCourse ? 'Update Course' : 'Create Course')}
+                                <button className={`modal-tab ${modalTab === 'bulk' ? 'active' : ''}`} onClick={() => setModalTab('bulk')}>
+                                    Bulk Import (JSON)
                                 </button>
                             </div>
-                        </form>
+                        )}
+
+                        <div className="modal-body">
+                            {/* Single Course Form */}
+                            {modalTab === 'single' && (
+                                <form onSubmit={handleSubmit}>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Course Code *</label>
+                                            <input type="text" className="form-input" placeholder="e.g., CS101"
+                                                value={formData.courseCode}
+                                                onChange={e => setFormData({ ...formData, courseCode: e.target.value })}
+                                                required disabled={!!editingCourse} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Course Name *</label>
+                                            <input type="text" className="form-input" placeholder="e.g., Data Structures"
+                                                value={formData.courseName}
+                                                onChange={e => setFormData({ ...formData, courseName: e.target.value })}
+                                                required />
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Branch *</label>
+                                            <select className="form-input" value={formData.branch}
+                                                onChange={e => setFormData({ ...formData, branch: e.target.value })}
+                                                required disabled={!!editingCourse}>
+                                                <option value="">Select Branch</option>
+                                                {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Year *</label>
+                                            <select className="form-input" value={formData.year}
+                                                onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                                                required disabled={!!editingCourse}>
+                                                {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Semester *</label>
+                                            <select className="form-input" value={formData.semester}
+                                                onChange={e => setFormData({ ...formData, semester: parseInt(e.target.value) })}
+                                                required>
+                                                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">Description</label>
+                                        <textarea className="form-input" placeholder="Course description..." rows={2}
+                                            value={formData.description}
+                                            onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                    </div>
+
+                                    <div className="form-section">
+                                        <h4>📅 Schedule</h4>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Day</label>
+                                                <select className="form-input" value={formData.schedule.day}
+                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, day: e.target.value } })}>
+                                                    {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Start</label>
+                                                <input type="time" className="form-input" value={formData.schedule.startTime}
+                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, startTime: e.target.value } })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">End</label>
+                                                <input type="time" className="form-input" value={formData.schedule.endTime}
+                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, endTime: e.target.value } })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Room</label>
+                                                <input type="text" className="form-input" placeholder="LH-101"
+                                                    value={formData.schedule.room}
+                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, room: e.target.value } })} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="modal-actions">
+                                        <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                                            {saving ? 'Saving...' : (editingCourse ? 'Update' : 'Create Course')}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {/* Bulk Import Tab */}
+                            {modalTab === 'bulk' && (
+                                <div className="bulk-import-section">
+                                    <div className="json-format-help">
+                                        <h4>📋 JSON Format</h4>
+                                        <p>Paste your timetable in this JSON format:</p>
+                                        <pre className="json-example">{SAMPLE_JSON}</pre>
+                                        <p className="format-note">
+                                            <strong>Branch codes:</strong> uch, ucs, uce, uec, uee, ume, umt<br />
+                                            <strong>Days:</strong> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
+                                        </p>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">Paste your JSON here:</label>
+                                        <textarea
+                                            className="form-input json-textarea"
+                                            placeholder='{"courses": [...]}'
+                                            rows={12}
+                                            value={jsonInput}
+                                            onChange={e => setJsonInput(e.target.value)}
+                                        />
+                                    </div>
+
+                                    {importResult && (
+                                        <div className="import-result">
+                                            <h4>Import Results</h4>
+                                            <div className="result-stats">
+                                                <span className="result-stat success">✅ Created: {importResult.created?.length || 0}</span>
+                                                <span className="result-stat warning">⏭️ Skipped: {importResult.skipped?.length || 0}</span>
+                                                <span className="result-stat error">❌ Failed: {importResult.failed?.length || 0}</span>
+                                            </div>
+                                            {importResult.failed?.length > 0 && (
+                                                <div className="failed-list">
+                                                    <strong>Failed items:</strong>
+                                                    {importResult.failed.map((f, i) => (
+                                                        <div key={i} className="failed-item">{f.courseCode}: {f.error}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="modal-actions">
+                                        <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                        <button type="button" className="btn btn-success" onClick={handleBulkImport}
+                                            disabled={saving || !jsonInput.trim()}>
+                                            {saving ? 'Importing...' : '📥 Import Courses'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
