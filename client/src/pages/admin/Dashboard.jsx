@@ -18,6 +18,7 @@ const AdminDashboard = () => {
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('professors');
+    const [detailModal, setDetailModal] = useState({ open: false, type: '', title: '', data: [] });
 
     useEffect(() => {
         fetchData();
@@ -86,6 +87,33 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleCardClick = (type) => {
+        switch (type) {
+            case 'students':
+                navigate('/admin/students');
+                break;
+            case 'professors':
+                setActiveTab('professors');
+                document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth' });
+                break;
+            case 'courses':
+                navigate('/admin/courses');
+                break;
+            case 'claimed':
+                navigate('/admin/courses?claimed=true');
+                break;
+            case 'pending':
+                setActiveTab('professors');
+                document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth' });
+                break;
+            case 'sessions':
+                toast.info('Active sessions overview coming soon!');
+                break;
+            default:
+                break;
+        }
+    };
+
     const totalPending = pendingProfessors.length + claimRequests.length + electiveRequests.length + pendingUsers.length;
 
     if (loading) {
@@ -121,54 +149,60 @@ const AdminDashboard = () => {
             </header>
 
             <main className="dashboard-content">
-                {/* Analytics Cards */}
+                {/* Analytics Cards - Clickable */}
                 <div className="analytics-grid">
-                    <div className="stat-card primary">
+                    <div className="stat-card primary clickable" onClick={() => handleCardClick('students')}>
                         <div className="stat-icon">👥</div>
                         <div className="stat-info">
                             <span className="stat-value">{analytics?.users?.totalStudents || 0}</span>
                             <span className="stat-label">Total Students</span>
                         </div>
+                        <span className="click-hint">View →</span>
                     </div>
-                    <div className="stat-card secondary">
+                    <div className="stat-card secondary clickable" onClick={() => handleCardClick('professors')}>
                         <div className="stat-icon">👨‍🏫</div>
                         <div className="stat-info">
                             <span className="stat-value">{analytics?.users?.totalProfessors || 0}</span>
                             <span className="stat-label">Professors</span>
                         </div>
+                        <span className="click-hint">View →</span>
                     </div>
-                    <div className="stat-card success">
+                    <div className="stat-card success clickable" onClick={() => handleCardClick('courses')}>
                         <div className="stat-icon">📚</div>
                         <div className="stat-info">
                             <span className="stat-value">{analytics?.courses?.total || 0}</span>
                             <span className="stat-label">Courses</span>
                         </div>
+                        <span className="click-hint">Manage →</span>
                     </div>
-                    <div className="stat-card info">
+                    <div className="stat-card info clickable" onClick={() => handleCardClick('claimed')}>
                         <div className="stat-icon">✅</div>
                         <div className="stat-info">
                             <span className="stat-value">{analytics?.courses?.claimed || 0}</span>
                             <span className="stat-label">Claimed</span>
                         </div>
+                        <span className="click-hint">Filter →</span>
                     </div>
-                    <div className="stat-card warning">
+                    <div className="stat-card warning clickable" onClick={() => handleCardClick('pending')}>
                         <div className="stat-icon">⏳</div>
                         <div className="stat-info">
                             <span className="stat-value">{totalPending}</span>
                             <span className="stat-label">Pending</span>
                         </div>
+                        <span className="click-hint">Review ↓</span>
                     </div>
-                    <div className="stat-card danger">
+                    <div className="stat-card danger clickable" onClick={() => handleCardClick('sessions')}>
                         <div className="stat-icon">🔴</div>
                         <div className="stat-info">
                             <span className="stat-value">{analytics?.sessions?.active || 0}</span>
                             <span className="stat-label">Active Sessions</span>
                         </div>
+                        <span className="click-hint">View →</span>
                     </div>
                 </div>
 
                 {/* Approval Queue Tabs */}
-                <div className="card approval-card">
+                <div className="card approval-card" id="approval-section">
                     <div className="approval-header">
                         <h2>📋 Approval Queue</h2>
                         <div className="tab-buttons">
