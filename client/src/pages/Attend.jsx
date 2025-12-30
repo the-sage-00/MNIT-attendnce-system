@@ -10,6 +10,7 @@ import {
     getBrowserName,
     getOSName
 } from '../utils/deviceFingerprint';
+import SecurityAlert, { ProxyWarning } from '../components/SecurityAlert';
 import './Attend.css';
 
 /**
@@ -35,12 +36,17 @@ const Attend = () => {
     const qrTimestamp = searchParams.get('ts');
 
     // State
-    const [step, setStep] = useState('init'); // init, location, confirm, processing, success, error
+    const [step, setStep] = useState('init'); // init, location, confirm, processing, success, error, blocked
     const [statusMsg, setStatusMsg] = useState('Initializing...');
     const [sessionInfo, setSessionInfo] = useState(null);
     const [location, setLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState('');
     const [distance, setDistance] = useState(null);
+
+    // V5: Security-related state
+    const [isSecurityBlocked, setIsSecurityBlocked] = useState(false);
+    const [securityError, setSecurityError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Redirect if no QR data
     useEffect(() => {
@@ -93,9 +99,9 @@ const Attend = () => {
         return Math.round(R * c);
     }, []);
 
-    // Request location with enhanced data
+    // V5: Request location with multi-sample collection
     const requestLocation = () => {
-        setLocationStatus('Acquiring GPS location...');
+        setLocationStatus('📡 Acquiring GPS signal...');
 
         if (!navigator.geolocation) {
             setStep('error');
@@ -103,75 +109,167 @@ const Attend = () => {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { coords } = position;
+        // V5: Collect multiple samples for better accuracy and spoof detection
+        const samples = [];
+        const maxSamples = 4;
+        const collectionDuration = 3500; // 3.5 seconds
+        let sampleCount = 0;
 
-                // Collect ALL available location data
-                const locationData = {
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                    accuracy: coords.accuracy,
-                    altitude: coords.altitude,
-                    altitudeAccuracy: coords.altitudeAccuracy,
-                    heading: coords.heading,
-                    speed: coords.speed,
-                    timestamp: position.timestamp
-                };
+        const collectSample = () => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { coords } = position;
 
-                setLocation(locationData);
+                    // Add sample
+                    samples.push({
+                        latitude: coords.latitude,
+                        longitude: coords.longitude,
+                        accuracy: coords.accuracy,
+                        altitude: coords.altitude,
+                        altitudeAccuracy: coords.altitudeAccuracy,
+                        heading: coords.heading,
+                        speed: coords.speed,
+                        timestamp: position.timestamp
+                    });
 
-                // Calculate distance if session info available
-                if (sessionInfo?.centerLat && sessionInfo?.centerLng) {
-                    const dist = calculateDistance(
-                        coords.latitude,
-                        coords.longitude,
-                        sessionInfo.centerLat,
-                        sessionInfo.centerLng
-                    );
-                    setDistance(dist);
+                    sampleCount++;
+                    setLocationStatus(`📍 Collecting GPS data... (${sampleCount}/${maxSamples})`);
 
-                    // Pre-check distance (informational only)
-                    if (dist > sessionInfo.radius) {
-                        setLocationStatus(`⚠️ You appear to be ${dist}m away. Allowed: ${sessionInfo.radius}m`);
-                    } else {
-                        setLocationStatus(`✓ Location verified (${dist}m from center)`);
+                    // Vibrate for haptic feedback on each sample (mobile)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
                     }
-                } else {
-                    setLocationStatus('✓ Location acquired');
+                },
+                (error) => {
+                    console.warn('Sample collection warning:', error);
+                    // Don't fail on individual sample errors, continue collecting
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 8000,
+                    maximumAge: 0
                 }
+            );
+        };
 
-                setStep('confirm');
-            },
-            (error) => {
-                setStep('error');
-                switch (error.code) {
-                    case error.PERMISSION_DENIED:
-                        setStatusMsg('Location permission denied. You must enable GPS to mark attendance.');
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        setStatusMsg('Location information unavailable. Please check your GPS.');
-                        break;
-                    case error.TIMEOUT:
-                        setStatusMsg('Location request timed out. Please try again.');
-                        break;
-                    default:
-                        setStatusMsg('Unable to get your location.');
-                }
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0  // Force fresh location
+        // Collect samples at intervals
+        collectSample();
+        const interval = setInterval(() => {
+            if (sampleCount < maxSamples) {
+                collectSample();
             }
-        );
+        }, collectionDuration / maxSamples);
+
+        // After collection period, process samples
+        setTimeout(() => {
+            clearInterval(interval);
+
+            // Use the best sample (lowest accuracy value = most accurate)
+            let bestSample = samples[0];
+            if (samples.length > 1) {
+                // Calculate average for centroid
+                const avgLat = samples.reduce((sum, s) => sum + s.latitude, 0) / samples.length;
+                const avgLon = samples.reduce((sum, s) => sum + s.longitude, 0) / samples.length;
+                const avgAccuracy = samples.reduce((sum, s) => sum + (s.accuracy || 0), 0) / samples.length;
+
+                bestSample = {
+                    ...samples[samples.length - 1], // Use latest timestamp
+                    latitude: avgLat,
+                    longitude: avgLon,
+                    accuracy: avgAccuracy
+                };
+            }
+
+            if (!bestSample) {
+                // Fallback to single location request
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { coords } = position;
+                        const locationData = {
+                            latitude: coords.latitude,
+                            longitude: coords.longitude,
+                            accuracy: coords.accuracy,
+                            altitude: coords.altitude,
+                            altitudeAccuracy: coords.altitudeAccuracy,
+                            heading: coords.heading,
+                            speed: coords.speed,
+                            timestamp: position.timestamp
+                        };
+                        processLocation(locationData, []);
+                    },
+                    handleLocationError,
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            } else {
+                processLocation(bestSample, samples);
+            }
+        }, collectionDuration + 500);
     };
 
-    // Submit attendance with enhanced security data
+    // V5: Handle location errors with clear messages
+    const handleLocationError = (error) => {
+        setStep('error');
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                setStatusMsg('📍 Location permission denied. You must enable GPS to mark attendance.');
+                break;
+            case error.POSITION_UNAVAILABLE:
+                setStatusMsg('📍 GPS signal unavailable. Please check your location settings and try again.');
+                break;
+            case error.TIMEOUT:
+                setStatusMsg('📍 Location request timed out. Please move to an area with better GPS signal.');
+                break;
+            default:
+                setStatusMsg('📍 Unable to get your location. Please try again.');
+        }
+    };
+
+    // V5: Process collected location data
+    const processLocation = (locationData, samples) => {
+        setLocation(locationData);
+
+        // Store samples for sending to backend
+        if (samples.length > 0) {
+            setLocation(prev => ({ ...prev, samples }));
+        }
+
+        // Calculate distance if session info available
+        if (sessionInfo?.centerLat && sessionInfo?.centerLng) {
+            const dist = calculateDistance(
+                locationData.latitude,
+                locationData.longitude,
+                sessionInfo.centerLat,
+                sessionInfo.centerLng
+            );
+            setDistance(dist);
+
+            // V5: Show clearer distance feedback
+            const accuracyInfo = locationData.accuracy ? ` (±${Math.round(locationData.accuracy)}m accuracy)` : '';
+            if (dist > sessionInfo.radius) {
+                setLocationStatus(`⚠️ You are ${dist}m away from the classroom. Allowed: ${sessionInfo.radius}m${accuracyInfo}`);
+            } else {
+                setLocationStatus(`✅ Within range: ${dist}m from center${accuracyInfo}`);
+                // Success vibration
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+            }
+        } else {
+            setLocationStatus(`✅ Location acquired${locationData.accuracy ? ` (±${Math.round(locationData.accuracy)}m)` : ''}`);
+        }
+
+        setStep('confirm');
+    };
+
+    // V5: Submit attendance with enhanced security data and location samples
     const handleSubmit = async () => {
+        // Prevent double-tap
+        if (isSubmitting) return;
+
         try {
+            setIsSubmitting(true);
             setStep('processing');
-            setStatusMsg('Marking your attendance...');
+            setStatusMsg('✨ Verifying and marking your attendance...');
 
             // Generate device fingerprint
             const { fingerprint, components } = generateDeviceFingerprint();
@@ -195,6 +293,9 @@ const Attend = () => {
                 heading: location.heading,
                 speed: location.speed,
 
+                // V5: Include location samples for multi-sample validation
+                ...(location.samples && { locationSamples: location.samples }),
+
                 // Device fingerprint
                 deviceFingerprint: fingerprint,
                 fingerprintComponents: components,
@@ -205,33 +306,79 @@ const Attend = () => {
                 os: getOSName()
             };
 
-            console.log('Submitting attendance with security data...');
+            console.log('V5: Submitting attendance with', location.samples?.length || 0, 'location samples');
 
             const response = await axios.post(`${API_URL}/attendance/mark`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             setStep('success');
-            setStatusMsg(response.data.message || 'Attendance marked successfully! ✅');
+            setStatusMsg(response.data.message || '✅ Attendance marked successfully!');
+
+            // Success vibration pattern
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100, 50, 200]);
+            }
 
         } catch (error) {
-            setStep('error');
             const errData = error.response?.data;
+            const errorCode = errData?.code || '';
 
-            // Format error message
+            // V5: Check for security-related blocks
+            const securityBlockCodes = [
+                'DEVICE_OWNERSHIP_CONFLICT',
+                'DEVICE_ALREADY_USED',
+                'MULTI_STUDENT_DEVICE',
+                'SUSPICIOUS_ACTIVITY',
+                'BLOCKED'
+            ];
+
+            if (securityBlockCodes.includes(errorCode) || error.response?.status === 409) {
+                // Security block - show full-screen warning
+                setIsSecurityBlocked(true);
+                setSecurityError({
+                    code: errorCode,
+                    message: errData?.error || 'Access blocked due to security concerns.',
+                    isBlocked: true
+                });
+                setStep('blocked');
+
+                // Strong error vibration
+                if (navigator.vibrate) {
+                    navigator.vibrate([300, 100, 300, 100, 500]);
+                }
+                return;
+            }
+
+            // Regular error
+            setStep('error');
+
+            // V5: Build user-friendly error message
             let errMsg = errData?.error || 'Failed to mark attendance.';
 
             // Add distance info if available
             if (errData?.distance && errData?.allowedRadius) {
-                errMsg += ` (${errData.distance}m away, max ${errData.allowedRadius}m)`;
+                errMsg = `📍 You are ${errData.distance}m away from the classroom. Allowed: ${errData.allowedRadius}m`;
+            }
+
+            // Add hint if provided by server
+            if (errData?.hint) {
+                errMsg += `\n\n💡 ${errData.hint}`;
             }
 
             // Add retry info if rate limited
             if (errData?.retryAfter) {
-                errMsg += ` Try again in ${errData.retryAfter}s.`;
+                errMsg += `\n\n⏱️ Please wait ${errData.retryAfter} seconds before trying again.`;
             }
 
             setStatusMsg(errMsg);
+
+            // Error vibration
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -307,8 +454,19 @@ const Attend = () => {
                             </div>
                             {renderLocationInfo()}
                             {locationStatus && <p className="location-status">{locationStatus}</p>}
-                            <button className="btn btn-success" onClick={handleSubmit}>
-                                ✓ Confirm Attendance
+                            <button
+                                className="btn btn-success"
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <span className="btn-spinner"></span>
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    '✓ Confirm Attendance'
+                                )}
                             </button>
                         </div>
                     )}
@@ -360,7 +518,7 @@ const Attend = () => {
                 </div>
 
                 {/* Status message for non-terminal states */}
-                {step !== 'success' && step !== 'error' && step !== 'processing' && step !== 'init' && (
+                {step !== 'success' && step !== 'error' && step !== 'processing' && step !== 'init' && step !== 'blocked' && (
                     <p className="status-text">{statusMsg}</p>
                 )}
 
@@ -369,8 +527,18 @@ const Attend = () => {
                     <small>🔒 Secured with device binding & location verification</small>
                 </div>
             </div>
+
+            {/* V5: Security Block Overlay */}
+            {isSecurityBlocked && (
+                <ProxyWarning
+                    isBlocked={securityError?.isBlocked}
+                    reason={securityError?.message}
+                    onGoBack={() => navigate('/student/dashboard')}
+                />
+            )}
         </div>
     );
 };
 
 export default Attend;
+

@@ -1,9 +1,12 @@
 {
   "name": "qr-attendance-server",
-  "version": "1.0.0",
-  "description": "Backend for QR-based attendance system",
+  "version": "5.0.0",
+  "description": "Backend for QR-based attendance system with enhanced security",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"

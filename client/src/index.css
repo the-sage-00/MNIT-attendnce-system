@@ -898,7 +898,7 @@ select.form-input {
   outline-offset: 2px;
 }
 
-/* Responsive */
+/* Responsive - Mobile First v5 */
 @media (max-width: 768px) {
   :root {
     --text-4xl: 2rem;
@@ -908,5 +908,139 @@ select.form-input {
 
   .container {
     padding: 0 var(--space-4);
+  }
+
+  /* Better touch targets */
+  .btn {
+    min-height: 48px;
+    font-size: var(--text-base);
+  }
+
+  .form-input {
+    min-height: 48px;
+    font-size: 16px;
+    /* Prevent iOS zoom */
+  }
+
+  /* Modal adjustments */
+  .modal {
+    max-height: 95vh;
+    margin: var(--space-2);
+    border-radius: var(--radius-xl);
+  }
+
+  .modal-header {
+    padding: var(--space-4);
+  }
+
+  .modal-form {
+    padding: var(--space-4);
+  }
+
+  /* Table scroll wrapper */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --text-4xl: 1.75rem;
+    --text-3xl: 1.375rem;
+    --text-2xl: 1.125rem;
+    --text-xl: 1rem;
+  }
+
+  .container {
+    padding: 0 var(--space-3);
+  }
+
+  .card {
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+  }
+
+  .btn-lg {
+    height: 48px;
+    font-size: var(--text-sm);
+  }
+
+  /* Stack modal actions on mobile */
+  .modal-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+
+  /* Full-width alerts */
+  .alert {
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .page-center {
+    padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+  }
+
+  .modal {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Dynamic viewport height for mobile browsers */
+@supports (min-height: 100dvh) {
+  body {
+    min-height: 100dvh;
+  }
+
+  .page-center {
+    min-height: 100dvh;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .btn:hover {
+    transform: none;
+  }
+
+  .card-hover:hover {
+    transform: none;
+  }
+
+  /* Larger touch targets */
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-subtle: rgba(255, 255, 255, 0.2);
+    --border-default: rgba(255, 255, 255, 0.4);
+  }
+
+  .btn-primary {
+    border: 2px solid white;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

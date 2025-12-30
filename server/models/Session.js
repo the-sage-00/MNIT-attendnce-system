@@ -56,14 +56,39 @@ const sessionSchema = new mongoose.Schema({
     // Enhanced location requirements
     requiredAccuracy: {
         type: Number,
-        default: 100  // meters - reject if GPS accuracy worse than this
+        default: 150  // meters - relaxed for indoor usage
     },
     requireLocationSamples: {
         type: Boolean,
-        default: false  // If true, require multiple location samples
+        default: true  // Enable multi-sample validation by default
     },
 
-    // QR Security (Enhanced)
+    // V5: Adaptive Geo-Fencing Configuration
+    adaptiveGeo: {
+        enabled: {
+            type: Boolean,
+            default: true
+        },
+        baseRadius: {
+            type: Number,
+            default: 50  // meters - base allowed distance
+        },
+        maxRadius: {
+            type: Number,
+            default: 200  // meters - maximum adaptive radius cap
+        },
+        accuracyMultiplier: {
+            type: Number,
+            default: 1.5  // How much to expand radius based on GPS accuracy
+        },
+        deviceTolerances: {
+            mobile: { type: Number, default: 1.0 },   // No extra tolerance for mobile
+            tablet: { type: Number, default: 1.2 },   // 20% extra for tablets
+            desktop: { type: Number, default: 1.5 }   // 50% extra for desktops (poor GPS)
+        }
+    },
+
+    // QR Security (Enhanced for v5 - Extended Display Time)
     qrToken: {
         type: String,
         default: () => crypto.randomBytes(16).toString('hex')
@@ -78,11 +103,16 @@ const sessionSchema = new mongoose.Schema({
     },
     qrExpiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 30000)  // 30 seconds
+        default: () => new Date(Date.now() + 120000)  // 2 minutes visible time (v5)
     },
     qrRotationInterval: {
         type: Number,
-        default: 30000  // 30 seconds in milliseconds
+        default: 120000  // 2 minutes visible time (v5)
+    },
+    // Internal security window (token cryptographic validity)
+    qrSecurityWindow: {
+        type: Number,
+        default: 30000  // 30 seconds - internal HMAC window
     },
     qrRotationCount: {
         type: Number,
@@ -166,14 +196,18 @@ sessionSchema.methods.refreshQRToken = async function () {
 };
 
 /**
- * Validate QR token with timing safety
+ * Validate QR token with timing safety (v5 Enhanced)
+ * - QR visible for 2 minutes (better UX)
+ * - Internal token validity window: 30 seconds
+ * - Allows ±1 time window tolerance
  * @param {string} token - The token from QR
  * @param {string} nonce - The nonce from QR
  * @param {number} timestamp - The timestamp from QR
- * @returns {object} { valid, reason }
+ * @returns {object} { valid, reason, timeWindow }
  */
 sessionSchema.methods.isQRTokenValid = function (token, nonce, timestamp) {
     const serverSecret = process.env.JWT_SECRET || 'default-secret';
+    const securityWindow = this.qrSecurityWindow || 30000; // 30 seconds
 
     // Check if session is active
     if (!this.isActive) {
@@ -189,14 +223,40 @@ sessionSchema.methods.isQRTokenValid = function (token, nonce, timestamp) {
         };
     }
 
-    // Enhanced validation with HMAC
+    // V5: Enhanced validation with time window tolerance
     const now = Date.now();
     const tokenAge = now - timestamp;
-    const maxAge = this.qrRotationInterval + 5000; // Add 5s grace period
 
-    // Check timestamp expiry
+    // Max age is qrRotationInterval (2 min display) + grace period
+    const maxAge = this.qrRotationInterval + 10000; // 10s grace period
+
+    // Check if token is too old (beyond display time)
     if (tokenAge > maxAge) {
         return { valid: false, reason: 'TOKEN_EXPIRED' };
+    }
+
+    // Check for future timestamps (clock manipulation)
+    if (timestamp > now + 30000) { // More than 30s in future
+        return { valid: false, reason: 'INVALID_TIMESTAMP', suspicious: true };
+    }
+
+    // V5: Time window validation with tolerance
+    // Calculate time windows (30-second buckets)
+    const currentWindow = Math.floor(now / securityWindow);
+    const tokenWindow = Math.floor(timestamp / securityWindow);
+    const windowDifference = Math.abs(currentWindow - tokenWindow);
+
+    // Allow ±1 time window tolerance (±30 seconds leeway)
+    // This means tokens are effectively valid for ~90 seconds cryptographically
+    // but we only show QR for 2 minutes for UX
+    const toleranceWindows = 1;
+
+    if (windowDifference > toleranceWindows + Math.ceil(this.qrRotationInterval / securityWindow)) {
+        return {
+            valid: false,
+            reason: 'TOKEN_EXPIRED',
+            details: 'Token time window exceeded'
+        };
     }
 
     // Regenerate expected token
@@ -213,7 +273,8 @@ sessionSchema.methods.isQRTokenValid = function (token, nonce, timestamp) {
         );
         return {
             valid: isValid,
-            reason: isValid ? null : 'INVALID_TOKEN'
+            reason: isValid ? null : 'INVALID_TOKEN',
+            timeWindow: tokenWindow // For debugging
         };
     } catch (err) {
         return { valid: false, reason: 'INVALID_TOKEN' };

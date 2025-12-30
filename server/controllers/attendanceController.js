@@ -330,6 +330,56 @@ export const markAttendance = async (req, res) => {
             }
         }
 
+        // ========================================
+        // CHECK 6b: Cross-Session Device Sharing (V5 Enhancement)
+        // Detect if this device has been used by OTHER students in ANY session
+        // ========================================
+        const deviceUsersGlobal = await DeviceRegistry.getDeviceUsers(deviceHash);
+        const otherUsersOfDevice = deviceUsersGlobal.filter(
+            d => d.student && d.student._id.toString() !== student._id.toString()
+        );
+
+        if (otherUsersOfDevice.length > 0) {
+            // This device is registered to multiple students!
+            securityFlags.push('MULTI_STUDENT_DEVICE');
+            suspicionScore += 30;
+
+            await redisService.logSuspiciousActivity(
+                student._id.toString(),
+                sessionId,
+                'DEVICE_SHARED_ACROSS_ACCOUNTS',
+                {
+                    deviceHash,
+                    otherStudents: otherUsersOfDevice.map(d => ({
+                        id: d.student._id,
+                        rollNo: d.student.rollNo,
+                        name: d.student.name
+                    }))
+                }
+            );
+
+            await logAudit('SECURITY_WARNING', {
+                userId: student._id,
+                userEmail: student.email,
+                sessionId: session._id,
+                deviceHash,
+                warningType: 'DEVICE_SHARED_ACROSS_ACCOUNTS',
+                otherStudentsCount: otherUsersOfDevice.length,
+                otherStudents: otherUsersOfDevice.map(d => d.student?.rollNo),
+                ipAddress
+            });
+
+            // In strict or paranoid mode, BLOCK the attendance
+            if (session.securityLevel === 'strict' || session.securityLevel === 'paranoid') {
+                return res.status(409).json({
+                    success: false,
+                    error: 'This device is registered to another student. Please use your own device.',
+                    code: 'DEVICE_OWNERSHIP_CONFLICT'
+                });
+            }
+            // In standard mode, allow but flag for review
+        }
+
         // Register/validate device for student
         const deviceResult = await DeviceRegistry.registerDevice(student._id, {
             deviceHash,
@@ -397,7 +447,7 @@ export const markAttendance = async (req, res) => {
         validationResults.academicMatch = true;
 
         // ========================================
-        // CHECK 8: Geolocation Validation (Enhanced)
+        // CHECK 8: Geolocation Validation (V5 - Adaptive Geo-Fencing)
         // ========================================
         if (session.locationBinding) {
             const locationValidation = validateLocation({
@@ -415,9 +465,17 @@ export const markAttendance = async (req, res) => {
                     centerLat: session.centerLat,
                     centerLng: session.centerLng,
                     radius: session.radius,
-                    requiredAccuracy: session.requiredAccuracy
+                    requiredAccuracy: session.requiredAccuracy,
+                    // V5: Pass adaptive geo configuration
+                    adaptiveGeo: session.adaptiveGeo || {
+                        enabled: true,
+                        baseRadius: 50,
+                        maxRadius: 200,
+                        accuracyMultiplier: 1.5
+                    }
                 },
-                strictMode: session.securityLevel === 'strict' || session.securityLevel === 'paranoid'
+                strictMode: session.securityLevel === 'strict' || session.securityLevel === 'paranoid',
+                deviceType  // V5: Pass device type for adaptive radius
             });
 
             // Add location security flags
@@ -430,6 +488,11 @@ export const markAttendance = async (req, res) => {
                 securityFlags.push('NEAR_EDGE');
             }
 
+            // V5: Flag extended allowance (allowed due to GPS accuracy compensation)
+            if (locationValidation.details?.distance?.extendedAllowance) {
+                securityFlags.push('EXTENDED_ALLOWANCE');
+            }
+
             if (!locationValidation.valid) {
                 await trackFailedAttempt(student._id.toString(), 'LOCATION_INVALID');
                 await logAudit('ATTENDANCE_FAILED', {
@@ -438,18 +501,20 @@ export const markAttendance = async (req, res) => {
                     sessionId: session._id,
                     location: { latitude, longitude, accuracy },
                     distanceFromCenter: locationValidation.distance,
-                    allowedRadius: session.radius,
+                    allowedRadius: locationValidation.allowedRadius || session.radius,
                     failureReason: locationValidation.error,
                     failureCode: 'LOCATION_OUT_OF_RANGE',
                     securityFlags,
                     ipAddress
                 });
 
+                // V5: User-friendly error message
                 return res.status(400).json({
                     success: false,
                     error: locationValidation.error || 'Location verification failed',
                     distance: locationValidation.distance,
-                    allowedRadius: session.radius
+                    allowedRadius: locationValidation.allowedRadius || session.radius,
+                    hint: `Please move closer to the classroom. You need to be within ${locationValidation.allowedRadius || session.radius}m of the session location.`
                 });
             }
 

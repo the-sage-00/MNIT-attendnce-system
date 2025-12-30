@@ -433,7 +433,7 @@
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
-/* Responsive */
+/* V5: Responsive - Mobile First */
 @media (max-width: 1024px) {
     .top-section {
         grid-template-columns: 1fr;
@@ -445,18 +445,37 @@
 }
 
 @media (max-width: 768px) {
+    .dashboard-header {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
     .dashboard-content {
         padding: 1rem;
     }
 
     .header-right {
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .header-right .btn {
+        flex: 1;
+        min-width: 120px;
     }
 
     .profile-card {
         flex-direction: column;
         text-align: center;
+    }
+
+    .profile-avatar {
+        width: 70px;
+        height: 70px;
+        font-size: 1.75rem;
     }
 
     .course-attendance-item {
@@ -470,5 +489,100 @@
 
     .percentage-badge {
         justify-self: end;
+    }
+
+    /* Smaller percentage circle on mobile */
+    .percentage-circle {
+        width: 120px;
+        height: 120px;
+    }
+
+    .percentage-value {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-header {
+        padding: 0.75rem;
+    }
+
+    .header-left h1 {
+        font-size: 1.25rem;
+    }
+
+    .dashboard-content {
+        padding: 0.75rem;
+    }
+
+    .card {
+        padding: 1rem;
+        border-radius: 0.75rem;
+    }
+
+    .card h3 {
+        font-size: 1rem;
+    }
+
+    /* Stack overall stats */
+    .overall-stats {
+        gap: 1rem;
+    }
+
+    .overall-stat .stat-num {
+        font-size: 1.25rem;
+    }
+
+    /* Adjust recent items */
+    .recent-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .simple-course-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .course-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    /* Full-width scan button */
+    .header-right .btn-success {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* V5: Safe area insets */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .student-dashboard {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* V5: Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    .simple-course-item:active,
+    .course-attendance-item:active,
+    .recent-item:active {
+        transform: scale(0.98);
+        background: var(--bg-hover);
+    }
+}
+
+/* V5: Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+
+    .attendance-fill,
+    .spinner {
+        transition: none;
+        animation: none;
     }
 }

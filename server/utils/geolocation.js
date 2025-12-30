@@ -163,44 +163,109 @@ export const detectSpoofing = (location, previousLocation = null) => {
 };
 
 /**
- * Validate location against session center
- * @param {object} studentLocation 
- * @param {object} sessionLocation 
- * @returns {object} Validation result
+ * V5: Calculate effective radius using adaptive geo-fencing
+ * Takes into account GPS accuracy and device type
+ * @param {object} sessionLocation - Session geo configuration
+ * @param {number} gpsAccuracy - Reported GPS accuracy in meters
+ * @param {string} deviceType - 'mobile', 'tablet', or 'desktop'
+ * @returns {object} { effectiveRadius, baseRadius, maxRadius, adjustments }
  */
-export const validateLocationAgainstSession = (studentLocation, sessionLocation) => {
-    const { latitude, longitude, accuracy } = studentLocation;
-    const { centerLat, centerLng, radius } = sessionLocation;
+export const calculateEffectiveRadius = (sessionLocation, gpsAccuracy, deviceType = 'mobile') => {
+    const adaptiveGeo = sessionLocation.adaptiveGeo || {};
 
-    // Calculate distance
-    const distance = calculateDistance(latitude, longitude, centerLat, centerLng);
+    // Defaults for v5
+    const baseRadius = adaptiveGeo.baseRadius || sessionLocation.radius || 50;
+    const maxRadius = adaptiveGeo.maxRadius || 200;
+    const accuracyMultiplier = adaptiveGeo.accuracyMultiplier || 1.5;
+    const deviceTolerances = adaptiveGeo.deviceTolerances || {
+        mobile: 1.0,
+        tablet: 1.2,
+        desktop: 1.5
+    };
 
-    // Check if within radius
-    const withinRadius = distance <= radius;
+    // Get device tolerance multiplier
+    const deviceMultiplier = deviceTolerances[deviceType] || 1.0;
 
-    // Check with accuracy margin
-    // If accuracy is poor, the actual position could be anywhere in that radius
-    const effectiveDistance = accuracy ? Math.max(0, distance - accuracy) : distance;
-    const withinRadiusWithAccuracy = effectiveDistance <= radius;
+    // Calculate adaptive radius based on GPS accuracy
+    // If GPS accuracy is ±50m, we expand the base radius proportionally
+    const accuracyContribution = (gpsAccuracy || 0) * accuracyMultiplier;
+    const adaptiveRadius = baseRadius + accuracyContribution;
 
-    // Distance buffer warning (within 10% of edge)
-    const nearEdge = distance > radius * 0.9 && distance <= radius;
+    // Apply device tolerance and cap at maximum
+    const effectiveRadius = Math.min(adaptiveRadius * deviceMultiplier, maxRadius);
 
     return {
-        valid: withinRadius,
-        validWithAccuracy: withinRadiusWithAccuracy,
-        distance: Math.round(distance),
-        allowedRadius: radius,
-        nearEdge,
-        percentage: Math.min(100, Math.round((distance / radius) * 100)),
-        message: withinRadius
-            ? `Within range (${Math.round(distance)}m of ${radius}m)`
-            : `Out of range (${Math.round(distance)}m from center, max ${radius}m)`
+        effectiveRadius: Math.round(effectiveRadius),
+        baseRadius,
+        maxRadius,
+        accuracyContribution: Math.round(accuracyContribution),
+        deviceMultiplier,
+        adjustments: {
+            fromAccuracy: Math.round(accuracyContribution),
+            fromDevice: Math.round((deviceMultiplier - 1) * adaptiveRadius),
+            capped: effectiveRadius >= maxRadius
+        }
     };
 };
 
 /**
- * Comprehensive location validation
+ * V5: Validate location against session center with ADAPTIVE GEO-FENCING
+ * @param {object} studentLocation - Student's GPS data
+ * @param {object} sessionLocation - Session geo configuration
+ * @param {string} deviceType - Device type for tolerance calculation
+ * @returns {object} Validation result with distance and effective radius
+ */
+export const validateLocationAgainstSession = (studentLocation, sessionLocation, deviceType = 'mobile') => {
+    const { latitude, longitude, accuracy } = studentLocation;
+    const { centerLat, centerLng, radius } = sessionLocation;
+
+    // Check if adaptive geo is enabled
+    const adaptiveEnabled = sessionLocation.adaptiveGeo?.enabled !== false;
+
+    // Calculate distance
+    const distance = calculateDistance(latitude, longitude, centerLat, centerLng);
+
+    // Calculate effective radius (v5 adaptive)
+    let effectiveRadius = radius;
+    let radiusDetails = null;
+
+    if (adaptiveEnabled) {
+        const radiusCalc = calculateEffectiveRadius(sessionLocation, accuracy, deviceType);
+        effectiveRadius = radiusCalc.effectiveRadius;
+        radiusDetails = radiusCalc;
+    }
+
+    // Check if within effective radius
+    const withinRadius = distance <= effectiveRadius;
+
+    // Also check raw distance vs base radius for flagging
+    const withinBaseRadius = distance <= (radiusDetails?.baseRadius || radius);
+
+    // Distance buffer warning (within 10% of edge)
+    const nearEdge = distance > effectiveRadius * 0.9 && distance <= effectiveRadius;
+
+    // Extended beyond base but within adaptive
+    const extendedAllowance = withinRadius && !withinBaseRadius;
+
+    return {
+        valid: withinRadius,
+        distance: Math.round(distance),
+        allowedRadius: effectiveRadius,
+        baseRadius: radiusDetails?.baseRadius || radius,
+        adaptiveEnabled,
+        withinBaseRadius,
+        extendedAllowance,
+        nearEdge,
+        percentage: Math.min(100, Math.round((distance / effectiveRadius) * 100)),
+        radiusDetails,
+        message: withinRadius
+            ? `Within range (${Math.round(distance)}m of ${effectiveRadius}m)`
+            : `You are ${Math.round(distance)}m away. Please move closer to the classroom. (Allowed: ${effectiveRadius}m)`
+    };
+};
+
+/**
+ * V5: Comprehensive location validation with adaptive geo-fencing
  * @param {object} params 
  * @returns {object} Complete validation result
  */
@@ -209,7 +274,8 @@ export const validateLocation = (params) => {
         studentLocation,
         sessionLocation,
         previousLocation = null,
-        strictMode = false
+        strictMode = false,
+        deviceType = 'mobile'  // v5: Pass device type for adaptive radius
     } = params;
 
     const result = {
@@ -217,7 +283,8 @@ export const validateLocation = (params) => {
         checks: {},
         flags: [],
         distance: 0,
-        details: {}
+        details: {},
+        deviceType
     };
 
     // Check 1: Format validation
@@ -230,10 +297,11 @@ export const validateLocation = (params) => {
         return result;
     }
 
-    // Check 2: Distance validation
-    const distanceCheck = validateLocationAgainstSession(studentLocation, sessionLocation);
+    // Check 2: Distance validation with adaptive geo-fencing (v5)
+    const distanceCheck = validateLocationAgainstSession(studentLocation, sessionLocation, deviceType);
     result.checks.distance = distanceCheck.valid;
     result.distance = distanceCheck.distance;
+    result.allowedRadius = distanceCheck.allowedRadius;
     result.details.distance = distanceCheck;
 
     if (!distanceCheck.valid) {
@@ -242,7 +310,12 @@ export const validateLocation = (params) => {
         result.error = distanceCheck.message;
     }
 
-    // Check 3: Spoofing detection
+    // Flag if location was allowed only due to adaptive extension
+    if (distanceCheck.extendedAllowance) {
+        result.flags.push('EXTENDED_ALLOWANCE');
+    }
+
+    // Check 3: Spoofing detection (preserved from v4)
     const spoofCheck = detectSpoofing(studentLocation, previousLocation);
     result.checks.spoofing = !spoofCheck.suspicious;
     result.details.spoofing = spoofCheck;
@@ -252,19 +325,21 @@ export const validateLocation = (params) => {
         // In strict mode, fail on suspicion
         if (strictMode) {
             result.valid = false;
-            result.error = 'SUSPICIOUS_LOCATION';
+            result.error = 'Suspicious location patterns detected. Please try again.';
         }
         result.suspicious = true;
     }
 
-    // Check 4: Accuracy requirement
-    const minAccuracy = sessionLocation.requiredAccuracy || 100; // Default 100m
+    // Check 4: Accuracy requirement (v5: relaxed to 150m, softer handling)
+    const minAccuracy = sessionLocation.requiredAccuracy || 150; // v5: Relaxed to 150m
     if (typeof studentLocation.accuracy === 'number' && studentLocation.accuracy > minAccuracy) {
         result.checks.accuracy = false;
         result.flags.push('ACCURACY_TOO_LOW');
+        // v5: Don't fail on poor accuracy alone (adaptive radius already accounts for it)
+        // Only fail in strict mode
         if (strictMode) {
             result.valid = false;
-            result.error = `Location accuracy must be within ${minAccuracy}m`;
+            result.error = `Your GPS accuracy is ±${Math.round(studentLocation.accuracy)}m. Please move to an area with better GPS signal.`;
         }
     } else {
         result.checks.accuracy = true;
@@ -274,39 +349,54 @@ export const validateLocation = (params) => {
 };
 
 /**
- * Generate location sample requirements
- * For stable location verification, require multiple samples
+ * V5: Generate location sample requirements
+ * Relaxed timing for real-world mobile usage
  */
 export const getLocationSampleRequirements = () => {
     return {
-        minSamples: 3,
-        maxTimeBetweenSamples: 10000, // 10 seconds
-        minTimeBetweenSamples: 2000,  // 2 seconds
-        maxVariance: 50,              // 50 meters max variance between samples
-        requiredAccuracy: 100         // Must be within 100m accuracy
+        minSamples: 3,             // Minimum 3 samples
+        maxSamples: 5,             // Maximum 5 samples
+        maxTimeBetweenSamples: 5000, // 5 seconds max (relaxed from 10)
+        minTimeBetweenSamples: 500,  // 500ms min (relaxed from 2s)
+        maxVariance: 80,             // 80 meters max variance (relaxed from 50)
+        maxTeleportSpeed: 50,        // 50 m/s max speed (detect teleportation)
+        requiredAccuracy: 150        // 150m accuracy (relaxed from 100)
     };
 };
 
 /**
- * Validate multiple location samples
+ * V5: Validate multiple location samples with improved detection
  * @param {array} samples Array of location samples
- * @returns {object} Validation result
+ * @returns {object} Validation result with centroid and flags
  */
 export const validateLocationSamples = (samples) => {
     const requirements = getLocationSampleRequirements();
+    const flags = [];
 
-    if (!samples || samples.length < requirements.minSamples) {
+    // Handle missing or insufficient samples (graceful degradation)
+    if (!samples || samples.length === 0) {
         return {
-            valid: false,
+            valid: true, // Don't fail if no samples provided - use single location
+            reason: 'NO_SAMPLES',
+            useSingleLocation: true
+        };
+    }
+
+    if (samples.length < requirements.minSamples) {
+        return {
+            valid: true, // Still allow with fewer samples, just flag it
             reason: 'INSUFFICIENT_SAMPLES',
             required: requirements.minSamples,
-            provided: samples?.length || 0
+            provided: samples.length,
+            useSingleLocation: true,
+            flags: ['FEW_SAMPLES']
         };
     }
 
     // Calculate centroid
     const avgLat = samples.reduce((sum, s) => sum + s.latitude, 0) / samples.length;
     const avgLon = samples.reduce((sum, s) => sum + s.longitude, 0) / samples.length;
+    const avgAccuracy = samples.reduce((sum, s) => sum + (s.accuracy || 0), 0) / samples.length;
 
     // Check variance
     const variances = samples.map(s =>
@@ -314,33 +404,50 @@ export const validateLocationSamples = (samples) => {
     );
     const maxVariance = Math.max(...variances);
 
+    // V5: Flag high variance but don't fail (real GPS drifts)
     if (maxVariance > requirements.maxVariance) {
-        return {
-            valid: false,
-            reason: 'LOCATION_UNSTABLE',
-            maxVariance,
-            allowedVariance: requirements.maxVariance
-        };
+        flags.push('HIGH_VARIANCE');
     }
 
-    // Check timing
+    // Teleportation detection (critical for spoofing detection)
     const timestamps = samples.map(s => s.timestamp || 0).sort((a, b) => a - b);
-    for (let i = 1; i < timestamps.length; i++) {
-        const diff = timestamps[i] - timestamps[i - 1];
-        if (diff < requirements.minTimeBetweenSamples || diff > requirements.maxTimeBetweenSamples) {
-            return {
-                valid: false,
-                reason: 'INVALID_SAMPLE_TIMING',
-                message: `Samples must be ${requirements.minTimeBetweenSamples / 1000}-${requirements.maxTimeBetweenSamples / 1000} seconds apart`
-            };
+    let teleportationDetected = false;
+
+    for (let i = 1; i < samples.length; i++) {
+        const distance = calculateDistance(
+            samples[i - 1].latitude, samples[i - 1].longitude,
+            samples[i].latitude, samples[i].longitude
+        );
+        const timeDiff = (samples[i].timestamp - samples[i - 1].timestamp) / 1000; // seconds
+
+        if (timeDiff > 0) {
+            const speed = distance / timeDiff;
+            if (speed > requirements.maxTeleportSpeed) {
+                teleportationDetected = true;
+                flags.push('TELEPORTATION_DETECTED');
+                break;
+            }
         }
+    }
+
+    // If teleportation detected, this is highly suspicious
+    if (teleportationDetected) {
+        return {
+            valid: false,
+            reason: 'TELEPORTATION_DETECTED',
+            suspicious: true,
+            message: 'Location jumped unexpectedly. This may indicate GPS spoofing.',
+            flags
+        };
     }
 
     return {
         valid: true,
-        centroid: { latitude: avgLat, longitude: avgLon },
-        maxVariance,
-        sampleCount: samples.length
+        centroid: { latitude: avgLat, longitude: avgLon, accuracy: avgAccuracy },
+        maxVariance: Math.round(maxVariance),
+        sampleCount: samples.length,
+        flags,
+        useSingleLocation: false
     };
 };
 
@@ -348,6 +455,7 @@ export default {
     calculateDistance,
     validateLocationFormat,
     detectSpoofing,
+    calculateEffectiveRadius,  // v5: New export
     validateLocationAgainstSession,
     validateLocation,
     getLocationSampleRequirements,
