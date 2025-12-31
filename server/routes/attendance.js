@@ -8,7 +8,9 @@ import {
     getCourseAttendance,
     exportCourseAttendance,
     getSessionDetails,
-    getStudentSummary
+    getStudentSummary,
+    getFailedAttempts,
+    acceptFailedAttempt
 } from '../controllers/attendanceController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { rateLimitAttendance } from '../middleware/rateLimiter.js';
@@ -40,6 +42,12 @@ router.get('/session/:sessionId', authorize('professor', 'admin'), getAttendance
 
 // Get detailed session attendance with full student info
 router.get('/session/:sessionId/details', authorize('professor', 'admin'), getSessionDetails);
+
+// Get failed attendance attempts for a session (for professor review)
+router.get('/session/:sessionId/failed-attempts', authorize('professor', 'admin'), getFailedAttempts);
+
+// Manually accept a failed attendance attempt
+router.post('/failed-attempt/:attemptId/accept', authorize('professor', 'admin'), acceptFailedAttempt);
 
 // Get complete course attendance with all students and sessions
 router.get('/course/:courseId', authorize('professor', 'admin'), getCourseAttendance);

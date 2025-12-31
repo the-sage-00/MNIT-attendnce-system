@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Attendance, Session, Course, AuditLog, DeviceRegistry } from '../models/index.js';
+import { Attendance, Session, Course, AuditLog, DeviceRegistry, FailedAttempt } from '../models/index.js';
 import { redisService } from '../config/redis.js';
 import { trackFailedAttempt, isBlocked } from '../middleware/rateLimiter.js';
 import {
@@ -549,13 +549,33 @@ export const markAttendance = async (req, res) => {
                     ipAddress
                 });
 
+                // Store failed attempt in database for professor review
+                try {
+                    await FailedAttempt.create({
+                        session: session._id,
+                        student: student._id,
+                        studentName: student.name,
+                        rollNo: student.rollNo,
+                        failureReason: 'LOCATION_TOO_FAR',
+                        failureMessage: `Distance: ${Math.round(locationValidation.distance)}m, Allowed: ${locationValidation.allowedRadius || session.radius}m`,
+                        location: { latitude, longitude, accuracy },
+                        distance: locationValidation.distance,
+                        deviceFingerprint: deviceHash,
+                        deviceType,
+                        status: 'PENDING'
+                    });
+                } catch (err) {
+                    console.error('Failed to store failed attempt:', err.message);
+                }
+
                 // V5: User-friendly error message
                 return res.status(400).json({
                     success: false,
                     error: locationValidation.error || 'Location verification failed',
                     distance: locationValidation.distance,
                     allowedRadius: locationValidation.allowedRadius || session.radius,
-                    hint: `Please move closer to the classroom. You need to be within ${locationValidation.allowedRadius || session.radius}m of the session location.`
+                    hint: `Please move closer to the classroom. You need to be within ${locationValidation.allowedRadius || session.radius}m of the session location.`,
+                    failedAttemptSaved: true
                 });
             }
 
@@ -1270,6 +1290,131 @@ export const getStudentSummary = async (req, res) => {
     }
 };
 
+/**
+ * @route   GET /api/attendance/session/:sessionId/failed-attempts
+ * @desc    Get all failed attendance attempts for a session (for professor review)
+ * @access  Private (Professor)
+ */
+export const getFailedAttempts = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+
+        // Verify session exists and professor owns the course
+        const session = await Session.findById(sessionId).populate('course');
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Session not found' });
+        }
+
+        const isProfessorClaimed = session.course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        const failedAttempts = await FailedAttempt.find({ session: sessionId })
+            .populate('student', 'name email rollNo branch')
+            .sort({ attemptedAt: -1 });
+
+        res.json({
+            success: true,
+            count: failedAttempts.length,
+            data: failedAttempts
+        });
+    } catch (error) {
+        console.error('Get Failed Attempts Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   POST /api/attendance/failed-attempt/:attemptId/accept
+ * @desc    Manually accept a failed attendance attempt
+ * @access  Private (Professor)
+ */
+export const acceptFailedAttempt = async (req, res) => {
+    try {
+        const { attemptId } = req.params;
+        const { note } = req.body;
+
+        const failedAttempt = await FailedAttempt.findById(attemptId);
+        if (!failedAttempt) {
+            return res.status(404).json({ success: false, error: 'Failed attempt not found' });
+        }
+
+        if (failedAttempt.status !== 'PENDING') {
+            return res.status(400).json({ success: false, error: 'This attempt has already been reviewed' });
+        }
+
+        // Verify session and professor ownership
+        const session = await Session.findById(failedAttempt.session).populate('course');
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Session not found' });
+        }
+
+        const isProfessorClaimed = session.course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        // Check if already has attendance for this session
+        const existingAttendance = await Attendance.findOne({
+            session: failedAttempt.session,
+            student: failedAttempt.student
+        });
+
+        if (existingAttendance) {
+            return res.status(400).json({ success: false, error: 'Student already has attendance for this session' });
+        }
+
+        // Create attendance record
+        const attendance = await Attendance.create({
+            session: failedAttempt.session,
+            student: failedAttempt.student,
+            studentName: failedAttempt.studentName,
+            rollNo: failedAttempt.rollNo,
+            status: 'PRESENT',  // Manually accepted = PRESENT
+            timestamp: failedAttempt.attemptedAt,
+            location: failedAttempt.location,
+            latitude: failedAttempt.location?.latitude || 0,
+            longitude: failedAttempt.location?.longitude || 0,
+            distance: failedAttempt.distance || 0,
+            deviceFingerprint: failedAttempt.deviceFingerprint || 'manual-accept',
+            deviceHash: failedAttempt.deviceFingerprint || 'manual-accept',
+            markedBy: 'admin',
+            verifiedBy: req.user._id,
+            notes: `Manually accepted by professor. ${note || ''}`
+        });
+
+        // Update failed attempt status
+        failedAttempt.status = 'ACCEPTED';
+        failedAttempt.acceptedAttendance = attendance._id;
+        failedAttempt.reviewedBy = req.user._id;
+        failedAttempt.reviewedAt = new Date();
+        failedAttempt.reviewNote = note || 'Manually accepted';
+        await failedAttempt.save();
+
+        // Update session attendance count
+        await Session.findByIdAndUpdate(failedAttempt.session, {
+            $inc: { attendanceCount: 1 },
+            lastAttendanceAt: new Date()
+        });
+
+        res.json({
+            success: true,
+            message: `Attendance marked for ${failedAttempt.studentName}`,
+            data: attendance
+        });
+    } catch (error) {
+        console.error('Accept Failed Attempt Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 export default {
     markAttendance,
     getMyAttendance,
@@ -1279,5 +1424,7 @@ export default {
     getCourseAttendance,
     exportCourseAttendance,
     getSessionDetails,
-    getStudentSummary
+    getStudentSummary,
+    getFailedAttempts,
+    acceptFailedAttempt
 };

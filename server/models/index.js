@@ -7,6 +7,7 @@ import DeviceRegistry from './DeviceRegistry.js';
 import Timetable from './Timetable.js';
 import ClaimRequest from './ClaimRequest.js';
 import ElectiveRequest from './ElectiveRequest.js';
+import FailedAttempt from './FailedAttempt.js';
 
 export {
     User,
@@ -17,5 +18,6 @@ export {
     DeviceRegistry,
     Timetable,
     ClaimRequest,
-    ElectiveRequest
+    ElectiveRequest,
+    FailedAttempt
 };
