@@ -96,8 +96,7 @@ public/uploads/
 *.bak
 *.backup
 
-# Service Worker generated files
-sw.js
+# Service Worker generated files (workbox)
 workbox-*.js
 
 # Gemini/AI generated
