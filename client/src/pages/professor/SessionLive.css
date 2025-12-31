@@ -1086,3 +1086,92 @@
     background: transparent;
     border: none;
 }
+
+/* ===================================
+   QR ACTION BUTTONS
+   =================================== */
+.qr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    justify-content: center;
+}
+
+.qr-actions button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.btn-refresh {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+}
+
+.btn-refresh:hover:not(:disabled) {
+    background: var(--bg-elevated);
+    border-color: var(--primary);
+}
+
+.btn-refresh:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-location {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--text-primary);
+}
+
+.btn-location:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.btn-stop {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--danger);
+}
+
+.btn-stop:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.refresh-icon,
+.stop-icon {
+    font-size: var(--text-base);
+}
+
+@media (max-width: 480px) {
+    .qr-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .qr-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+}
