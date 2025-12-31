@@ -179,7 +179,7 @@ export const createCourse = async (req, res) => {
  *     {
  *       "courseCode": "CS101",
  *       "courseName": "Data Structures",
- *       "branch": "ucs",
+ *       "branch": "ucp",
  *       "year": 2,
  *       "semester": 3,
  *       "batch": "all",
@@ -202,7 +202,7 @@ export const bulkImportCourses = async (req, res) => {
             });
         }
 
-        const validBranches = ['uch', 'ucs', 'uce', 'uec', 'uee', 'ume', 'umt'];
+        const validBranches = ['uch', 'ucp', 'ucs', 'uce', 'uec', 'uee', 'ume', 'umt'];
         const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const validBatches = ['all', '1', '2', '3', '4', '5'];
 

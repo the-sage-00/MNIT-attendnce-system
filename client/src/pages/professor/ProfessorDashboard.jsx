@@ -9,7 +9,7 @@ import './ProfessorDashboard.css';
 
 const BRANCH_OPTIONS = [
     { code: 'uch', name: 'Chemical' },
-    { code: 'ucs', name: 'Computer Science' },
+    { code: 'ucp', name: 'Computer Science' },
     { code: 'uce', name: 'Civil' },
     { code: 'uec', name: 'Electronics' },
     { code: 'uee', name: 'Electrical' },

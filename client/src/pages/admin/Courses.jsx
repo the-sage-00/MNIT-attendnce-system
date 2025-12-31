@@ -9,7 +9,7 @@ import './Courses.css';
 
 const BRANCH_OPTIONS = [
     { code: 'uch', name: 'Chemical Engineering' },
-    { code: 'ucs', name: 'Computer Science Engineering' },
+    { code: 'ucp', name: 'Computer Science Engineering' },
     { code: 'uce', name: 'Civil Engineering' },
     { code: 'uec', name: 'Electronics & Communication' },
     { code: 'uee', name: 'Electrical Engineering' },
@@ -24,7 +24,7 @@ const SAMPLE_JSON = `{
     {
       "courseCode": "CS101",
       "courseName": "Data Structures",
-      "branch": "ucs",
+      "branch": "ucp",
       "year": 2,
       "semester": 3,
       "batch": "all",
@@ -36,7 +36,7 @@ const SAMPLE_JSON = `{
     {
       "courseCode": "CS102",
       "courseName": "Lab Work",
-      "branch": "ucs",
+      "branch": "ucp",
       "year": 2,
       "semester": 3,
       "batch": "1",
@@ -441,7 +441,7 @@ const AdminCourses = () => {
                                         <p>Paste your timetable in this JSON format:</p>
                                         <pre className="json-example">{SAMPLE_JSON}</pre>
                                         <p className="format-note">
-                                            <strong>Branch codes:</strong> uch, ucs, uce, uec, uee, ume, umt<br />
+                                            <strong>Branch codes:</strong> uch, ucp, ucs, uce, uec, uee, ume, umt<br />
                                             <strong>Days:</strong> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
                                         </p>
                                     </div>

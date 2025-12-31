@@ -6,7 +6,7 @@
  * 
  * Branch Codes:
  * - UCH/uch: Chemical Engineering
- * - UCS/ucs: Computer Science
+ * - UCP/ucp: Computer Science
  * - UME/ume: Mechanical Engineering  
  * - UMT/umt: Metallurgy
  * - UCE/uce: Civil Engineering
@@ -17,8 +17,8 @@
 // Standard branch code mapping (lowercase)
 export const BRANCH_CODES = {
     'uch': { name: 'Chemical Engineering', shortName: 'Chemical' },
-    'ucs': { name: 'Computer Science Engineering', shortName: 'CSE' },
-    'ucp': { name: 'Computer Science Engineering', shortName: 'CSE' }, // Alias
+    'ucp': { name: 'Computer Science Engineering', shortName: 'CSE' },
+    'ucs': { name: 'Computer Science Engineering', shortName: 'CSE' }, // Alias for UCP
     'ume': { name: 'Mechanical Engineering', shortName: 'Mech' },
     'umt': { name: 'Metallurgical Engineering', shortName: 'Metallurgy' },
     'uce': { name: 'Civil Engineering', shortName: 'Civil' },
