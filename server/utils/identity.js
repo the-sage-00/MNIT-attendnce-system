@@ -18,7 +18,6 @@
 export const BRANCH_CODES = {
     'uch': { name: 'Chemical Engineering', shortName: 'Chemical' },
     'ucp': { name: 'Computer Science Engineering', shortName: 'CSE' },
-    'ucs': { name: 'Computer Science Engineering', shortName: 'CSE' }, // Alias for UCP
     'ume': { name: 'Mechanical Engineering', shortName: 'Mech' },
     'umt': { name: 'Metallurgical Engineering', shortName: 'Metallurgy' },
     'uce': { name: 'Civil Engineering', shortName: 'Civil' },

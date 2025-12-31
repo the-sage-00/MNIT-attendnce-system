@@ -441,7 +441,7 @@ const AdminCourses = () => {
                                         <p>Paste your timetable in this JSON format:</p>
                                         <pre className="json-example">{SAMPLE_JSON}</pre>
                                         <p className="format-note">
-                                            <strong>Branch codes:</strong> uch, ucp, ucs, uce, uec, uee, ume, umt<br />
+                                            <strong>Branch codes:</strong> uch, ucp, uce, uec, uee, ume, umt<br />
                                             <strong>Days:</strong> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
                                         </p>
                                     </div>

@@ -11,7 +11,7 @@ const TimetableSchema = new mongoose.Schema({
         type: String,
         required: true,
         lowercase: true,
-        enum: ['uch', 'ucp', 'ucs', 'ume', 'umt', 'uce', 'uec', 'uee']
+        enum: ['uch', 'ucp', 'ume', 'umt', 'uce', 'uec', 'uee']
     },
     year: {
         type: Number,

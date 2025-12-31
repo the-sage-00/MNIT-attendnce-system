@@ -202,7 +202,7 @@ export const bulkImportCourses = async (req, res) => {
             });
         }
 
-        const validBranches = ['uch', 'ucp', 'ucs', 'uce', 'uec', 'uee', 'ume', 'umt'];
+        const validBranches = ['uch', 'ucp', 'uce', 'uec', 'uee', 'ume', 'umt'];
         const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const validBatches = ['all', '1', '2', '3', '4', '5'];
 
