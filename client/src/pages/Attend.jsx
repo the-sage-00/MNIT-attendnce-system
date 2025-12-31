@@ -247,9 +247,20 @@ const Attend = () => {
             // This ensures client and server show consistent "allowed" values
             const gpsAccuracy = locationData.accuracy || 30;
             const sessionRadius = sessionInfo.radius || 50;
-            const minimumBuffer = 30; // Same as server
-            const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) : 0;
-            const effectiveRadius = sessionRadius + minimumBuffer + accuracyContribution;
+
+            // Match server's calculateEffectiveRadius logic:
+            const baseRadius = Math.max(sessionRadius, 50); // adaptiveGeo.baseRadius defaults to 50
+            const maxRadius = Math.max(400, sessionRadius + 100); // adaptive maxRadius cap
+            const minimumBuffer = 30;
+            const accuracyMultiplier = 1.0;
+            const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) * accuracyMultiplier : 0;
+
+            // Device detection for tolerance (simplified)
+            const isMobile = /mobile|android|iphone|ipad/i.test(navigator.userAgent);
+            const deviceMultiplier = isMobile ? 1.0 : 1.2; // Desktop gets 20% more tolerance
+
+            const adaptiveRadius = baseRadius + minimumBuffer + accuracyContribution;
+            const effectiveRadius = Math.min(Math.round(adaptiveRadius * deviceMultiplier), maxRadius);
 
             // V5: Show clearer distance feedback with effective radius
             const accuracyNote = gpsAccuracy > 50
@@ -435,9 +446,19 @@ const Attend = () => {
         // Calculate approximate effective radius for display (matching server logic)
         const gpsAccuracy = location.accuracy || 30;
         const sessionRadius = sessionInfo?.radius || 50;
+
+        // Match server's calculateEffectiveRadius logic:
+        const baseRadius = Math.max(sessionRadius, 50);
+        const maxRadius = Math.max(400, sessionRadius + 100);
         const minimumBuffer = 30;
-        const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) : 0;
-        const effectiveRadius = sessionRadius + minimumBuffer + accuracyContribution;
+        const accuracyMultiplier = 1.0;
+        const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) * accuracyMultiplier : 0;
+
+        const isMobile = /mobile|android|iphone|ipad/i.test(navigator.userAgent);
+        const deviceMultiplier = isMobile ? 1.0 : 1.2;
+
+        const adaptiveRadius = baseRadius + minimumBuffer + accuracyContribution;
+        const effectiveRadius = Math.min(Math.round(adaptiveRadius * deviceMultiplier), maxRadius);
         const isWithinRange = distance <= effectiveRadius;
 
         return (
