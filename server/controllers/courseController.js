@@ -44,7 +44,7 @@ export const getCourses = async (req, res) => {
  */
 export const getClaimableCourses = async (req, res) => {
     try {
-        const { branch, year } = req.query;
+        const { branch, year, batch } = req.query;
 
         const query = {
             isArchived: false,
@@ -53,6 +53,7 @@ export const getClaimableCourses = async (req, res) => {
 
         if (branch) query.branch = branch.toLowerCase();
         if (year) query.year = parseInt(year);
+        if (batch) query.batch = batch;
 
         const courses = await Course.find(query)
             .populate('claimedBy', 'name email')

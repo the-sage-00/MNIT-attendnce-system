@@ -27,7 +27,7 @@ const ProfessorDashboard = () => {
     const [pastSessions, setPastSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('claimed');
-    const [browseFilter, setBrowseFilter] = useState({ branch: '', year: '' });
+    const [browseFilter, setBrowseFilter] = useState({ branch: '', year: '', batch: '' });
 
     // Session Modal State
     const [showSessionModal, setShowSessionModal] = useState(false);
@@ -97,6 +97,7 @@ const ProfessorDashboard = () => {
             const params = new URLSearchParams();
             if (browseFilter.branch) params.append('branch', browseFilter.branch);
             if (browseFilter.year) params.append('year', browseFilter.year);
+            if (browseFilter.batch) params.append('batch', browseFilter.batch);
             const res = await axios.get(`${API_URL}/courses/claimable?${params}`, { headers });
             setClaimableCourses(res.data.data || []);
         } catch (error) {
@@ -218,11 +219,17 @@ const ProfessorDashboard = () => {
                                                 <h3>{course.courseName}</h3>
                                                 <p className="course-meta">
                                                     {course.branch?.toUpperCase()} - Year {course.year}, Sem {course.semester}
+                                                    <span className="batch-tag">{course.batch === 'all' ? 'All Batches' : `Batch ${course.batch}`}</span>
                                                 </p>
-                                                {course.schedule && (
-                                                    <p className="course-schedule">
-                                                        📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
-                                                    </p>
+                                                {course.schedules?.length > 0 && (
+                                                    <div className="course-schedules">
+                                                        {course.schedules.map((sched, idx) => (
+                                                            <p key={idx} className="course-schedule">
+                                                                📅 {sched.day} {sched.startTime}-{sched.endTime}
+                                                                {sched.room && ` | 🚪 ${sched.room}`}
+                                                            </p>
+                                                        ))}
+                                                    </div>
                                                 )}
                                                 <div className="course-actions">
                                                     <button className="btn btn-sm btn-primary" onClick={() => {
@@ -262,6 +269,15 @@ const ProfessorDashboard = () => {
                                             <option value="3">Year 3</option>
                                             <option value="4">Year 4</option>
                                         </select>
+                                        <select value={browseFilter.batch} onChange={e => setBrowseFilter({ ...browseFilter, batch: e.target.value })} className="filter-select">
+                                            <option value="">All Batches</option>
+                                            <option value="all">For All (all)</option>
+                                            <option value="1">Batch 1</option>
+                                            <option value="2">Batch 2</option>
+                                            <option value="3">Batch 3</option>
+                                            <option value="4">Batch 4</option>
+                                            <option value="5">Batch 5</option>
+                                        </select>
                                         <span className="filter-count">{claimableCourses.length} courses</span>
                                     </div>
                                 </div>
@@ -275,12 +291,17 @@ const ProfessorDashboard = () => {
                                                 <h3>{course.courseName}</h3>
                                                 <p className="course-meta">
                                                     {course.branch?.toUpperCase()} - Year {course.year}, Sem {course.semester}
+                                                    <span className="batch-tag">{course.batch === 'all' ? 'All Batches' : `Batch ${course.batch}`}</span>
                                                 </p>
-                                                {course.schedule?.day && (
-                                                    <p className="course-schedule">
-                                                        📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
-                                                        {course.schedule.room && ` | 🚪 ${course.schedule.room}`}
-                                                    </p>
+                                                {course.schedules?.length > 0 && (
+                                                    <div className="course-schedules">
+                                                        {course.schedules.map((sched, idx) => (
+                                                            <p key={idx} className="course-schedule">
+                                                                📅 {sched.day} {sched.startTime}-{sched.endTime}
+                                                                {sched.room && ` | 🚪 ${sched.room}`}
+                                                            </p>
+                                                        ))}
+                                                    </div>
                                                 )}
                                                 {course.claimedBy?.length > 0 && (
                                                     <p className="other-professors">
