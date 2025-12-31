@@ -68,10 +68,15 @@ export const createSession = async (req, res) => {
         const sessionDuration = duration || course.defaultDuration || 60;
         const endTime = new Date(startTime.getTime() + sessionDuration * 60000);
 
+        // Get session number (count of previous sessions + 1)
+        const previousSessionsCount = await Session.countDocuments({ course: course._id });
+        const sessionNumber = previousSessionsCount + 1;
+
         // Create session with security settings
         const session = await Session.create({
             course: course._id,
             professor: req.user._id,
+            sessionNumber,
             startTime,
             endTime,
             centerLat,

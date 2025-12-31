@@ -1192,3 +1192,195 @@
         text-align: left;
     }
 }
+
+/* ========================================
+   LAST ATTENDANCE CARD
+   ======================================== */
+
+.last-attendance-card {
+    background: var(--bg-elevated);
+    border-left: 4px solid var(--primary);
+}
+
+.last-attendance-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.attendance-status-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.attendance-status-icon.present {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.attendance-status-icon.late {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.attendance-status-icon.absent {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.last-attendance-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.last-attendance-info .course-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.last-attendance-info .status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.status-badge.present {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.status-badge.late {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.last-attendance-info .attendance-time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Recent History List */
+.recent-history-list {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.recent-history-list h4 {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px dotted var(--border-subtle);
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-status {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.history-status.present {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.history-status.late {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.history-course {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.history-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* ========================================
+   WARNING CARD
+   ======================================== */
+
+.warning-card {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.03));
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-left: 4px solid #ef4444;
+}
+
+.warning-card h3 {
+    color: #ef4444;
+}
+
+.warning-text {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.warning-courses {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.warning-course-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-surface);
+    border-radius: 0.5rem;
+}
+
+.warning-course-code {
+    font-weight: 700;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+.warning-percentage {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.warning-sessions {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}

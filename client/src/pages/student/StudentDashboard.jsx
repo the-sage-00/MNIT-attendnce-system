@@ -163,6 +163,71 @@ const StudentDashboard = () => {
                                     </div>
                                 </div>
 
+                                {/* Last Attendance Card */}
+                                {summary?.recentHistory?.length > 0 && (
+                                    <div className="card last-attendance-card">
+                                        <h3>🕐 Last Attendance</h3>
+                                        <div className="last-attendance-content">
+                                            <div className={`attendance-status-icon ${summary.recentHistory[0].status?.toLowerCase()}`}>
+                                                {summary.recentHistory[0].status === 'PRESENT' ? '✓' :
+                                                    summary.recentHistory[0].status === 'LATE' ? '⏰' : '✗'}
+                                            </div>
+                                            <div className="last-attendance-info">
+                                                <span className="course-name">{summary.recentHistory[0].courseName || summary.recentHistory[0].courseCode}</span>
+                                                <span className={`status-badge ${summary.recentHistory[0].status?.toLowerCase()}`}>
+                                                    {summary.recentHistory[0].status}
+                                                </span>
+                                                <span className="attendance-time">
+                                                    {summary.recentHistory[0].timestamp && new Date(summary.recentHistory[0].timestamp).toLocaleString('en-IN', {
+                                                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                                    })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {/* Recent History List */}
+                                        {summary.recentHistory.length > 1 && (
+                                            <div className="recent-history-list">
+                                                <h4>Recent History</h4>
+                                                {summary.recentHistory.slice(1, 5).map((item, idx) => (
+                                                    <div key={idx} className="history-item">
+                                                        <span className={`history-status ${item.status?.toLowerCase()}`}>
+                                                            {item.status === 'PRESENT' ? '✓' : item.status === 'LATE' ? '⏰' : '✗'}
+                                                        </span>
+                                                        <span className="history-course">{item.courseCode}</span>
+                                                        <span className="history-time">
+                                                            {item.timestamp && new Date(item.timestamp).toLocaleDateString('en-IN', {
+                                                                day: '2-digit', month: 'short'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Low Attendance Warnings */}
+                                {summary?.overall?.coursesBelow75 > 0 && (
+                                    <div className="card warning-card">
+                                        <h3>⚠️ Attendance Warnings</h3>
+                                        <p className="warning-text">You have {summary.overall.coursesBelow75} course(s) below 75%</p>
+                                        <div className="warning-courses">
+                                            {summary.courses
+                                                .filter(c => !c.meetsMinimum)
+                                                .map((course, idx) => (
+                                                    <div key={idx} className="warning-course-item">
+                                                        <span className="warning-course-code">{course.course?.courseCode}</span>
+                                                        <span className="warning-percentage">{course.attendancePercentage}%</span>
+                                                        <span className="warning-sessions">
+                                                            Need {Math.ceil(course.totalSessions * 0.75) - course.sessionsAttended} more
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Course Attendance */}
                                 <div className="card course-attendance-section">
                                     <h3>📈 Course-wise Attendance</h3>

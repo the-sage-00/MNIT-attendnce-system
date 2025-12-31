@@ -849,14 +849,18 @@ export const getCourseAttendance = async (req, res) => {
     try {
         const { courseId } = req.params;
 
-        // Verify course ownership
+        // Verify course ownership - check if professor has claimed this course
         const course = await Course.findById(courseId);
         if (!course) {
             return res.status(404).json({ success: false, error: 'Course not found' });
         }
 
-        if (course.professor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-            return res.status(403).json({ success: false, error: 'Not authorized' });
+        const isProfessorClaimed = course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized - you have not claimed this course' });
         }
 
         // Get all sessions for this course

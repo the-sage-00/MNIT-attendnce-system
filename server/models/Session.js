@@ -29,6 +29,12 @@ const sessionSchema = new mongoose.Schema({
         required: true
     },
 
+    // Session number (auto-incremented per course)
+    sessionNumber: {
+        type: Number,
+        default: 0
+    },
+
     // Time constraints
     startTime: {
         type: Date,
