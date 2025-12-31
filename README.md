@@ -18,6 +18,129 @@
 
 </div>
 
+---
+
+## 🚀 Quick Start for Evaluators
+
+> **For hackathon judges/evaluators**: This section helps you quickly test the entire system.
+
+### 📋 System Overview
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         SYSTEM ARCHITECTURE                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                     │
+│  │   CLIENT    │    │   SERVER    │    │  DATABASE   │                     │
+│  │  (React +   │◄──►│  (Node.js + │◄──►│  (MongoDB)  │                     │
+│  │   Vite)     │    │   Express)  │    │             │                     │
+│  └─────────────┘    └──────┬──────┘    └─────────────┘                     │
+│                            │                                                │
+│                     ┌──────▼──────┐                                        │
+│                     │    REDIS    │ ← Session caching for performance      │
+│                     │   (Cache)   │                                        │
+│                     └─────────────┘                                        │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 🔑 Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@classcheck.com` | `Admin@123` |
+| **Professor** | Sign up with any `@mnit.ac.in` email | Your chosen password |
+| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`) | Your chosen password |
+
+### 📖 Step-by-Step Usage Guide
+
+#### Step 1️⃣: Admin Setup (Required First)
+
+1. Go to **[https://checkatte.vercel.app/](https://checkatte.vercel.app/)**
+2. Click **"Admin Login"**
+3. Login with: `admin@classcheck.com` / `Admin@123`
+4. **Add Courses**: Go to Courses → Bulk Import → Use sample JSON
+5. **Approve Professors**: When professors sign up, approve them in the Approvals tab
+
+#### Step 2️⃣: Professor Flow
+
+1. **Sign Up** with an MNIT professor email
+2. **Wait for Admin Approval** (or approve yourself as admin)
+3. **Claim a Course**: Browse available courses → Request to claim
+4. **Start a Session**:
+   - Click "Start Session" button
+   - Select course, set duration (10-180 mins)
+   - Set GPS radius (20-500m) and QR rotation (15s-2min)
+   - Allow location access → QR code appears
+5. **Monitor Attendance**: View real-time student check-ins
+6. **Stop Session**: Click "Stop Session" when done
+
+#### Step 3️⃣: Student Flow
+
+1. **Sign Up** with MNIT student email (format: `2024ucp1234@mnit.ac.in`)
+2. **Login** to see your courses (auto-enrolled based on branch & year)
+3. **Scan QR Code**: When professor starts session
+   - Allow camera & location permissions
+   - Point camera at QR code displayed by professor
+4. **Attendance Marked**: If all 7 security checks pass ✅
+
+### 🛡️ Security Layers Tested
+
+When a student scans the QR code, these checks happen automatically:
+
+| Layer | What it Checks | Fraud Prevented |
+|-------|----------------|-----------------|
+| 1 | **QR Token Validity** | Screenshot sharing |
+| 2 | **QR Not Expired** | Old QR code reuse |
+| 3 | **GPS Location** | Marking from hostel |
+| 4 | **Device Fingerprint** | Phone sharing |
+| 5 | **One Device/Student** | Multiple devices |
+| 6 | **Session Active** | Post-class marking |
+| 7 | **Academic Eligibility** | Wrong class attendance |
+
+### 📁 Project Structure
+
+```
+├── client/                 # React Frontend (Vite)
+│   ├── src/
+│   │   ├── pages/          # Role-based pages
+│   │   │   ├── admin/      # Admin dashboard, courses, users
+│   │   │   ├── professor/  # Professor dashboard, sessions
+│   │   │   └── student/    # Student dashboard, attendance
+│   │   ├── components/     # Reusable UI components
+│   │   └── context/        # Auth context
+│   └── public/             # Static assets, PWA icons
+│
+├── server/                 # Node.js Backend (Express)
+│   ├── controllers/        # Route handlers
+│   │   ├── authController.js
+│   │   ├── sessionController.js
+│   │   ├── attendanceController.js
+│   │   └── courseController.js
+│   ├── models/             # MongoDB schemas
+│   ├── middleware/         # Auth, rate limiting
+│   ├── routes/             # API routes
+│   ├── utils/              # Helpers (identity parser, etc.)
+│   └── config/             # Redis, database config
+│
+├── readme/                 # README images
+└── README.md               # This file
+```
+
+### 🔧 Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Frontend | React 18, Vite, CSS3 |
+| Backend | Node.js, Express.js |
+| Database | MongoDB Atlas |
+| Cache | Redis (Upstash) |
+| Hosting | Vercel (Frontend), Render (Backend) |
+| Auth | JWT + Google OAuth |
+
+---
+
 ## 📖 Table of Contents
 
 1. [Problem Statement](#-problem-statement)
