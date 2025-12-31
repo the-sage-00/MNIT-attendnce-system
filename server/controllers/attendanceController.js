@@ -420,8 +420,9 @@ export const markAttendance = async (req, res) => {
         const studentBranchCode = (student.branchCode || '').toLowerCase();
         const courseBranchCode = (course.branch || '').toLowerCase();
 
-        // Check if student's branch matches course branch
-        const branchMatch = studentBranchCode === courseBranchCode;
+        // UCP and UCS are both Computer Science - treat as equivalent
+        const normalizeCS = (code) => (code === 'ucp' || code === 'ucs') ? 'cs' : code;
+        const branchMatch = normalizeCS(studentBranchCode) === normalizeCS(courseBranchCode);
         const yearMatch = course.year === academicState?.year;
 
         // Check batch eligibility:
