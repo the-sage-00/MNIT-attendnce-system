@@ -270,9 +270,9 @@ const ProfessorDashboard = () => {
                 </div>
                 <div className="header-right">
                     <ThemeToggle />
-                    <button className="header-avatar" onClick={() => { logout(); navigate('/'); }}>
+                    <Link to="/professor/profile" className="header-avatar">
                         {user?.name?.charAt(0)?.toUpperCase() || 'P'}
-                    </button>
+                    </Link>
                 </div>
             </header>
 

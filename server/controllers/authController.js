@@ -326,3 +326,71 @@ export const updateBatch = async (req, res) => {
         });
     }
 };
+
+/**
+ * @route   DELETE /api/auth/delete-account
+ * @desc    Delete user's own account
+ * @access  Private (Student/Professor)
+ */
+export const deleteAccount = async (req, res) => {
+    try {
+        const user = req.user;
+
+        // Admin cannot delete their account through this endpoint
+        if (user.role === 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Admin accounts cannot be deleted through this endpoint'
+            });
+        }
+
+        // Import models dynamically to avoid circular dependencies
+        const { Attendance, Course, AuditLog } = await import('../models/index.js');
+
+        // If professor, release all claimed courses
+        if (user.role === 'professor') {
+            await Course.updateMany(
+                { claimedBy: user._id },
+                { $pull: { claimedBy: user._id } }
+            );
+            console.log(`Released courses for professor: ${user.email}`);
+        }
+
+        // If student, optionally delete attendance records
+        if (user.role === 'student') {
+            // Delete attendance records
+            await Attendance.deleteMany({ student: user._id });
+            console.log(`Deleted attendance records for student: ${user.email}`);
+        }
+
+        // Log the deletion
+        await AuditLog.log({
+            eventType: 'ACCOUNT_DELETED',
+            userId: user._id,
+            userEmail: user.email,
+            userRole: user.role,
+            metadata: {
+                deletedAt: new Date(),
+                selfDeleted: true
+            }
+        });
+
+        // Delete the user
+        await User.findByIdAndDelete(user._id);
+
+        console.log(`Account deleted: ${user.email} (${user.role})`);
+
+        res.json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Delete Account Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete account'
+        });
+    }
+};
+

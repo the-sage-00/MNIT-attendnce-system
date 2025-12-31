@@ -20,12 +20,14 @@ import AdminSessionDetail from './pages/admin/SessionDetail';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentProfile from './pages/student/StudentProfile';
 import Attend from './pages/Attend';
 import Scan from './pages/Scan';
 
 // Professor Pages
 import ProfessorLogin from './pages/professor/ProfessorLogin';
 import ProfessorDashboard from './pages/professor/ProfessorDashboard';
+import ProfessorProfile from './pages/professor/ProfessorProfile';
 import SessionLive from './pages/professor/SessionLive';
 import CourseAttendance from './pages/professor/CourseAttendance';
 
@@ -72,11 +74,21 @@ function App() {
                 <Scan />
               </ProtectedRoute>
             } />
+            <Route path="/student/profile" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentProfile />
+              </ProtectedRoute>
+            } />
 
             {/* Professor Routes */}
             <Route path="/professor/dashboard" element={
               <ProtectedRoute allowedRoles={['professor']}>
                 <ProfessorDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/professor/profile" element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorProfile />
               </ProtectedRoute>
             } />
             <Route path="/professor/session/:id" element={

@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import API_URL from '../../config/api';
-import './StudentProfile.css';
+import './ProfessorProfile.css';
 
-const StudentProfile = () => {
+const ProfessorProfile = () => {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -44,10 +44,10 @@ const StudentProfile = () => {
     };
 
     return (
-        <div className="profile-page">
+        <div className="professor-profile-page">
             <header className="profile-header">
                 <div className="header-left">
-                    <Link to="/student/dashboard" className="back-link">
+                    <Link to="/professor/dashboard" className="back-link">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="m15 18-6-6 6-6" />
                         </svg>
@@ -61,17 +61,12 @@ const StudentProfile = () => {
                 {/* Profile Summary */}
                 <div className="profile-summary card">
                     <div className="profile-avatar">
-                        {user?.name?.charAt(0)?.toUpperCase() || 'S'}
+                        {user?.name?.charAt(0)?.toUpperCase() || 'P'}
                     </div>
                     <div className="profile-details">
-                        <h2>{user?.name || 'Student'}</h2>
-                        <p className="roll">{user?.rollNo}</p>
+                        <h2>{user?.name || 'Professor'}</h2>
+                        <span className="role-badge">Professor</span>
                         <p className="email">{user?.email}</p>
-                        {user?.branch && (
-                            <p className="branch-year">
-                                {user.branch?.toUpperCase()} • Year {user?.academicState?.year || '?'}
-                            </p>
-                        )}
                     </div>
                 </div>
 
@@ -107,33 +102,17 @@ const StudentProfile = () => {
                                 <label>Full Name</label>
                                 <p>{user?.name || 'Not set'}</p>
                             </div>
-                            <div className="info-row">
-                                <div className="info-group">
-                                    <label>Roll Number</label>
-                                    <p>{user?.rollNo || 'Not set'}</p>
-                                </div>
-                                <div className="info-group">
-                                    <label>Batch</label>
-                                    <p>{user?.batch || 'Not set'}</p>
-                                </div>
-                            </div>
                             <div className="info-group">
                                 <label>Email</label>
                                 <p>{user?.email}</p>
                             </div>
-                            <div className="info-row">
-                                <div className="info-group">
-                                    <label>Branch</label>
-                                    <p>{user?.branch?.toUpperCase() || 'Not set'}</p>
-                                </div>
-                                <div className="info-group">
-                                    <label>Academic Year</label>
-                                    <p>Year {user?.academicState?.year || '?'}</p>
-                                </div>
+                            <div className="info-group">
+                                <label>Role</label>
+                                <p>Professor</p>
                             </div>
                             <div className="info-note">
-                                ℹ️ Profile information is automatically extracted from your college email.
-                                Contact admin if any details are incorrect.
+                                ℹ️ Profile information is managed through Google authentication.
+                                Contact admin if you need to update any details.
                             </div>
                         </div>
                     )}
@@ -157,7 +136,7 @@ const StudentProfile = () => {
                             <div className="account-action danger">
                                 <div className="action-info">
                                     <h4>🗑️ Delete Account</h4>
-                                    <p>Permanently delete your account and all attendance records. This action cannot be undone.</p>
+                                    <p>Permanently delete your account. Your claimed courses will be released. This action cannot be undone.</p>
                                 </div>
                                 <button
                                     className="btn btn-danger"
@@ -184,9 +163,9 @@ const StudentProfile = () => {
                                 <p><strong>This action is irreversible!</strong></p>
                                 <p>Deleting your account will:</p>
                                 <ul>
-                                    <li>Remove all your attendance records</li>
+                                    <li>Release all your claimed courses</li>
                                     <li>Delete your profile information</li>
-                                    <li>Remove you from all courses</li>
+                                    <li>Remove access to all sessions</li>
                                 </ul>
                             </div>
                             <div className="form-group">
@@ -223,4 +202,4 @@ const StudentProfile = () => {
     );
 };
 
-export default StudentProfile;
+export default ProfessorProfile;

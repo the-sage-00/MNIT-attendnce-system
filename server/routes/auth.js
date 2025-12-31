@@ -4,7 +4,8 @@ import {
     professorGoogleLogin,
     getMe,
     adminLogin,
-    updateBatch
+    updateBatch,
+    deleteAccount
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -25,4 +26,8 @@ router.get('/me', protect, getMe);
 // Update student batch
 router.put('/batch', protect, updateBatch);
 
+// Delete own account
+router.delete('/delete-account', protect, deleteAccount);
+
 export default router;
+
