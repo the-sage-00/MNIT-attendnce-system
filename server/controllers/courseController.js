@@ -377,6 +377,7 @@ export const getStudentTimetable = async (req, res) => {
 
         const branchCode = user.branchCode;
         const admissionYear = user.admissionYear;
+        const studentBatch = user.batch;
 
         if (!branchCode || !admissionYear) {
             return res.status(400).json({
@@ -387,42 +388,59 @@ export const getStudentTimetable = async (req, res) => {
 
         const academicState = calculateAcademicState(admissionYear);
 
-        // Get all courses for this student's branch and year that have schedules
+        // Get all courses for this student's branch, year, and batch (or 'all' batch)
+        // Courses with schedules array
         const courses = await Course.find({
             branch: branchCode.toLowerCase(),
             year: academicState.year,
             isArchived: false,
-            'schedule.day': { $exists: true, $ne: '' }
+            $or: [
+                { batch: 'all' },
+                { batch: studentBatch }
+            ],
+            schedules: { $exists: true, $ne: [] }
         }).populate('claimedBy', 'name email');
 
         // Also get elective courses the student has been approved for
         const electives = await Course.find({
             _id: { $in: user.electiveCourses || [] },
-            isArchived: false,
-            'schedule.day': { $exists: true, $ne: '' }
+            isArchived: false
         }).populate('claimedBy', 'name email');
 
         const allCourses = [...courses, ...electives];
 
-        // Organize by day for easier frontend rendering
+        // Organize by day - a course can appear on multiple days
         const byDay = {};
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         days.forEach(day => {
-            byDay[day] = allCourses
-                .filter(course => course.schedule?.day === day)
-                .map(course => ({
-                    startTime: course.schedule.startTime,
-                    endTime: course.schedule.endTime,
-                    room: course.schedule.room,
-                    course: {
-                        _id: course._id,
-                        courseCode: course.courseCode,
-                        courseName: course.courseName,
-                        claimedBy: course.claimedBy
-                    }
-                }))
-                .sort((a, b) => a.startTime.localeCompare(b.startTime));
+            byDay[day] = [];
+        });
+
+        // Iterate through courses and their schedules
+        allCourses.forEach(course => {
+            const schedules = course.schedules || [];
+            schedules.forEach(schedule => {
+                if (schedule.day && days.includes(schedule.day)) {
+                    byDay[schedule.day].push({
+                        startTime: schedule.startTime,
+                        endTime: schedule.endTime,
+                        room: schedule.room,
+                        course: {
+                            _id: course._id,
+                            courseCode: course.courseCode,
+                            courseName: course.courseName,
+                            batch: course.batch,
+                            claimedBy: course.claimedBy
+                        }
+                    });
+                }
+            });
+        });
+
+        // Sort each day by start time
+        days.forEach(day => {
+            byDay[day].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
         });
 
         res.json({
@@ -432,7 +450,8 @@ export const getStudentTimetable = async (req, res) => {
                 academicInfo: {
                     branch: branchCode,
                     year: academicState.year,
-                    semester: academicState.semester
+                    semester: academicState.semester,
+                    batch: studentBatch
                 }
             }
         });

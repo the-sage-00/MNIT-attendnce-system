@@ -3,7 +3,8 @@ import {
     studentGoogleLogin,
     professorGoogleLogin,
     getMe,
-    adminLogin
+    adminLogin,
+    updateBatch
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -20,5 +21,8 @@ router.post('/admin/login', adminLogin);
 
 // Get current user
 router.get('/me', protect, getMe);
+
+// Update student batch
+router.put('/batch', protect, updateBatch);
 
 export default router;

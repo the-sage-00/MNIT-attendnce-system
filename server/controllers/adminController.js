@@ -103,31 +103,41 @@ export const createCourse = async (req, res) => {
             branch,
             year,
             semester,
-            schedule,
+            batch,
+            schedules,
+            schedule, // Support legacy single schedule
             defaultLocation,
             defaultDuration,
             lateThreshold
         } = req.body;
 
         // Validate required fields
-        if (!courseCode || !courseName || !branch || !year || !semester || !schedule) {
+        if (!courseCode || !courseName || !branch || !year || !semester) {
             return res.status(400).json({
                 success: false,
-                error: 'Please provide courseCode, courseName, branch, year, semester, and schedule'
+                error: 'Please provide courseCode, courseName, branch, year, and semester'
             });
         }
 
-        // Check if course already exists for this branch/year
+        // Handle both schedules array and legacy single schedule
+        let courseSchedules = schedules || [];
+        if (!schedules && schedule) {
+            // Convert legacy single schedule to array
+            courseSchedules = [schedule];
+        }
+
+        // Check if course already exists for this branch/year/batch combination
         const existingCourse = await Course.findOne({
             courseCode: courseCode.toUpperCase(),
             branch: branch.toLowerCase(),
-            year
+            year,
+            batch: batch || 'all'
         });
 
         if (existingCourse) {
             return res.status(400).json({
                 success: false,
-                error: 'Course with this code already exists for this branch and year'
+                error: 'Course with this code already exists for this branch, year, and batch'
             });
         }
 
@@ -138,7 +148,8 @@ export const createCourse = async (req, res) => {
             branch: branch.toLowerCase(),
             year,
             semester,
-            schedule,
+            batch: batch || 'all',
+            schedules: courseSchedules,
             defaultLocation,
             defaultDuration,
             lateThreshold,
@@ -171,9 +182,12 @@ export const createCourse = async (req, res) => {
  *       "branch": "ucs",
  *       "year": 2,
  *       "semester": 3,
- *       "schedule": { "day": "Monday", "startTime": "09:00", "endTime": "10:00", "room": "LH-101" }
- *     },
- *     ...
+ *       "batch": "all",
+ *       "schedules": [
+ *         { "day": "Monday", "startTime": "09:00", "endTime": "10:00", "room": "LH-101" },
+ *         { "day": "Wednesday", "startTime": "14:00", "endTime": "15:00", "room": "LH-101" }
+ *       ]
+ *     }
  *   ]
  * }
  */
@@ -190,6 +204,7 @@ export const bulkImportCourses = async (req, res) => {
 
         const validBranches = ['uch', 'ucs', 'uce', 'uec', 'uee', 'ume', 'umt'];
         const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const validBatches = ['all', '1', '2', '3', '4', '5'];
 
         const results = {
             created: [],
@@ -199,7 +214,7 @@ export const bulkImportCourses = async (req, res) => {
 
         for (const courseData of courses) {
             try {
-                const { courseCode, courseName, branch, year, semester, schedule, description } = courseData;
+                const { courseCode, courseName, branch, year, semester, batch, schedules, schedule, description } = courseData;
 
                 // Validate required fields
                 if (!courseCode || !courseName || !branch || !year || !semester) {
@@ -231,27 +246,48 @@ export const bulkImportCourses = async (req, res) => {
                     continue;
                 }
 
-                // Validate schedule day if provided
-                if (schedule?.day && !validDays.includes(schedule.day)) {
+                // Validate batch if provided
+                const courseBatch = batch || 'all';
+                if (!validBatches.includes(courseBatch)) {
                     results.failed.push({
                         courseCode,
-                        error: `Invalid day. Must be one of: ${validDays.join(', ')}`
+                        error: `Invalid batch. Must be one of: ${validBatches.join(', ')}`
                     });
                     continue;
                 }
+
+                // Handle both schedules array and legacy single schedule
+                let courseSchedules = schedules || [];
+                if (!schedules && schedule) {
+                    courseSchedules = [schedule];
+                }
+
+                // Validate schedule days
+                let invalidDay = false;
+                for (const sched of courseSchedules) {
+                    if (sched.day && !validDays.includes(sched.day)) {
+                        results.failed.push({
+                            courseCode,
+                            error: `Invalid day '${sched.day}'. Must be one of: ${validDays.join(', ')}`
+                        });
+                        invalidDay = true;
+                        break;
+                    }
+                }
+                if (invalidDay) continue;
 
                 // Check if course already exists
                 const existingCourse = await Course.findOne({
                     courseCode: courseCode.toUpperCase(),
                     branch: branch.toLowerCase(),
                     year,
-                    semester
+                    batch: courseBatch
                 });
 
                 if (existingCourse) {
                     results.skipped.push({
                         courseCode,
-                        reason: 'Course already exists for this branch/year/semester'
+                        reason: `Course already exists for ${branch.toUpperCase()} Year ${year} Batch ${courseBatch}`
                     });
                     continue;
                 }
@@ -264,7 +300,8 @@ export const bulkImportCourses = async (req, res) => {
                     branch: branch.toLowerCase(),
                     year,
                     semester,
-                    schedule: schedule || {},
+                    batch: courseBatch,
+                    schedules: courseSchedules,
                     createdBy: req.user._id,
                     claimedBy: []
                 });
@@ -272,6 +309,7 @@ export const bulkImportCourses = async (req, res) => {
                 results.created.push({
                     courseCode: newCourse.courseCode,
                     courseName: newCourse.courseName,
+                    batch: newCourse.batch,
                     _id: newCourse._id
                 });
 

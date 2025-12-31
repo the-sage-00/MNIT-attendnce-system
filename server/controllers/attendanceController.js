@@ -424,15 +424,18 @@ export const markAttendance = async (req, res) => {
         const branchMatch = studentBranchCode === courseBranchCode;
         const yearMatch = course.year === academicState?.year;
 
+        // Check batch eligibility: 'all' means everyone, otherwise must match student's batch
+        const batchMatch = course.batch === 'all' || course.batch === student.batch;
+
         // Check if student has this course as an approved elective
         const isElective = student.electiveCourses?.some(
             ec => ec.toString() === course._id.toString()
         );
 
         // Student is eligible if:
-        // 1. Branch and year match their academic state, OR
+        // 1. Branch, year AND batch match their academic state, OR
         // 2. The course is in their approved electiveCourses
-        const isEligible = (branchMatch && yearMatch) || isElective;
+        const isEligible = (branchMatch && yearMatch && batchMatch) || isElective;
 
         if (!isEligible) {
             console.log('Eligibility check failed:', {
@@ -442,6 +445,9 @@ export const markAttendance = async (req, res) => {
                 studentYear: academicState?.year,
                 courseYear: course.year,
                 yearMatch,
+                studentBatch: student.batch,
+                courseBatch: course.batch,
+                batchMatch,
                 isElective,
                 electiveCourses: student.electiveCourses
             });
@@ -461,12 +467,17 @@ export const markAttendance = async (req, res) => {
                     studentYear: academicState?.year,
                     courseYear: course.year,
                     yearMatch,
+                    studentBatch: student.batch,
+                    courseBatch: course.batch,
+                    batchMatch,
                     isElective
                 }
             });
+
+            const batchInfo = course.batch !== 'all' ? ` Batch ${course.batch}` : '';
             return res.status(403).json({
                 success: false,
-                error: `You are not eligible for this course. Required: ${course.branch?.toUpperCase()} Year ${course.year}`
+                error: `You are not eligible for this course. Required: ${course.branch?.toUpperCase()} Year ${course.year}${batchInfo}`
             });
         }
         validationResults.academicMatch = true;

@@ -36,6 +36,13 @@ const CourseSchema = new mongoose.Schema({
         max: 8
     },
 
+    // Batch: 'all' for entire branch, or '1'-'5' for specific batch
+    batch: {
+        type: String,
+        enum: ['all', '1', '2', '3', '4', '5'],
+        default: 'all'
+    },
+
     // Admin who created the course
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -49,26 +56,23 @@ const CourseSchema = new mongoose.Schema({
         ref: 'User'
     }],
 
-    // Schedule (set by admin, can be modified by professor)
-    schedule: {
+    // Multiple schedules (course can be on different days/times/rooms)
+    schedules: [{
         day: {
             type: String,
-            enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            required: true
+            enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         },
         startTime: {
-            type: String, // HH:MM format
-            required: true
+            type: String // HH:MM format
         },
         endTime: {
-            type: String, // HH:MM format
-            required: true
+            type: String // HH:MM format
         },
         room: {
             type: String,
             default: ''
         }
-    },
+    }],
 
     // Default location for sessions (geofencing)
     defaultLocation: {
