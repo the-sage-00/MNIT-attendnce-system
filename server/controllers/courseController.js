@@ -327,16 +327,10 @@ export const getStudentCourses = async (req, res) => {
 
         const academicState = calculateAcademicState(admissionYear);
 
-        // UCP and UCS are both Computer Science - match either
-        const branchLower = branchCode.toLowerCase();
-        const branchesToMatch = branchLower === 'ucp' || branchLower === 'ucs'
-            ? ['ucp', 'ucs']
-            : [branchLower];
-
         // Auto-enrolled courses (matching branch, year, AND batch)
         // Show courses for student's specific batch OR courses for 'all' batches
         const autoEnrolledCourses = await Course.find({
-            branch: { $in: branchesToMatch },
+            branch: branchCode.toLowerCase(),
             year: academicState.year,
             isArchived: false,
             $or: [
@@ -402,16 +396,10 @@ export const getStudentTimetable = async (req, res) => {
 
         const academicState = calculateAcademicState(admissionYear);
 
-        // UCP and UCS are both Computer Science - match either
-        const branchLower = branchCode.toLowerCase();
-        const branchesToMatch = branchLower === 'ucp' || branchLower === 'ucs'
-            ? ['ucp', 'ucs']
-            : [branchLower];
-
         // Get all courses for this student's branch, year, and batch (or 'all' batch)
         // Courses with schedules array
         const courses = await Course.find({
-            branch: { $in: branchesToMatch },
+            branch: branchCode.toLowerCase(),
             year: academicState.year,
             isArchived: false,
             $or: [
