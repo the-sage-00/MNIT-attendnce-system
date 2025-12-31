@@ -232,7 +232,7 @@ The system has **three user roles** with distinct workflows. Below are detailed 
 ## 👨‍🎓 Student Workflow
 
 <p align="center">
-  <img src="./student.svg" alt="Student Use Case Diagram" width="100%">
+  <img src="./readme/student.svg" alt="Student Use Case Diagram" width="100%">
 </p>
 
 ### Complete Student Journey
@@ -332,7 +332,7 @@ Devices auto-register on first use.
 ## 👨‍🏫 Professor Workflow
 
 <p align="center">
-  <img src="./professor.svg" alt="Professor Use Case Diagram" width="100%">
+  <img src="./readme/professor.svg" alt="Professor Use Case Diagram" width="100%">
 </p>
 
 ### Complete Professor Journey
@@ -420,7 +420,7 @@ Devices auto-register on first use.
 ## 🛡️ Admin Workflow
 
 <p align="center">
-  <img src="./admin.svg" alt="Admin Use Case Diagram" width="100%">
+  <img src="./readme/admin.svg" alt="Admin Use Case Diagram" width="100%">
 </p>
 
 ### Complete Admin Journey

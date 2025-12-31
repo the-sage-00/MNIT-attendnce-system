@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import API_URL from '../../config/api';
@@ -51,9 +51,11 @@ const AdminCourses = () => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [modalTab, setModalTab] = useState('single'); // 'single' or 'bulk'
+    const [modalTab, setModalTab] = useState('single');
     const [editingCourse, setEditingCourse] = useState(null);
     const [filter, setFilter] = useState({ branch: '', year: '', claimed: '' });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
     // Single course form
     const [formData, setFormData] = useState({
@@ -68,7 +70,7 @@ const AdminCourses = () => {
     const [importResult, setImportResult] = useState(null);
     const [saving, setSaving] = useState(false);
 
-    const { token, logout } = useAuth();
+    const { token, user, logout } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => { fetchCourses(); }, [filter]);
@@ -172,122 +174,331 @@ const AdminCourses = () => {
     };
 
     const getBranchName = (code) => BRANCH_OPTIONS.find(b => b.code === code)?.name || code?.toUpperCase();
+    const getBranchShort = (code) => code?.toUpperCase() || '';
 
-    if (loading) {
-        return (
-            <div className="courses-page">
-                <div className="loading-container"><div className="spinner spinner-lg"></div><p>Loading courses...</p></div>
-            </div>
-        );
-    }
+    // Filter courses by search
+    const filteredCourses = courses.filter(c =>
+        c.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.courseCode.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Stats
+    const stats = {
+        total: courses.length,
+        claimed: courses.filter(c => c.claimedBy?.length > 0).length,
+        unclaimed: courses.filter(c => !c.claimedBy?.length).length
+    };
+
+    // Skeleton component
+    const SkeletonCard = () => (
+        <div className="skeleton-course-card">
+            <div className="skeleton-line short shimmer"></div>
+            <div className="skeleton-line shimmer"></div>
+            <div className="skeleton-line shimmer"></div>
+        </div>
+    );
 
     return (
         <div className="courses-page">
+            {/* Header */}
             <header className="courses-header">
-                <div className="header-content">
-                    <h1>📚 Course Management</h1>
-                    <p>Create and manage courses for all branches</p>
+                <div className="header-left">
+                    <Link to="/admin/dashboard" className="btn-back">← Back</Link>
+                    <div className="header-title">
+                        <h1>📚 Course Management</h1>
+                        <p>Create, edit, and manage all courses</p>
+                    </div>
                 </div>
-                <div className="header-actions">
+                <div className="header-right">
                     <ThemeToggle />
-                    <button className="btn btn-primary" onClick={() => { resetForm(); setModalTab('single'); setShowModal(true); }}>
-                        + Create Course
+                    <button className="header-avatar" onClick={() => { logout(); navigate('/'); }}>
+                        {user?.name?.charAt(0)?.toUpperCase() || 'A'}
                     </button>
-                    <button className="btn btn-success" onClick={() => { resetForm(); setModalTab('bulk'); setShowModal(true); }}>
-                        📥 Bulk Import
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => navigate('/admin/dashboard')}>← Dashboard</button>
                 </div>
             </header>
 
-            {/* Filters */}
-            <div className="filters-bar">
-                <select value={filter.branch} onChange={(e) => setFilter({ ...filter, branch: e.target.value })} className="filter-select">
-                    <option value="">All Branches</option>
-                    {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
-                </select>
-                <select value={filter.year} onChange={(e) => setFilter({ ...filter, year: e.target.value })} className="filter-select">
-                    <option value="">All Years</option>
-                    <option value="1">1st Year</option>
-                    <option value="2">2nd Year</option>
-                    <option value="3">3rd Year</option>
-                    <option value="4">4th Year</option>
-                </select>
-                <select value={filter.claimed} onChange={(e) => setFilter({ ...filter, claimed: e.target.value })} className="filter-select">
-                    <option value="">All Status</option>
-                    <option value="true">Claimed</option>
-                    <option value="false">Unclaimed</option>
-                </select>
-                <span className="filter-count">{courses.length} courses</span>
-            </div>
+            <main className="courses-content">
+                {/* Stats Bar */}
+                <div className="stats-bar">
+                    <div className="stat-item">
+                        <span className="stat-value">{stats.total}</span>
+                        <span className="stat-label">Total</span>
+                    </div>
+                    <div className="stat-divider"></div>
+                    <div className="stat-item claimed">
+                        <span className="stat-value">{stats.claimed}</span>
+                        <span className="stat-label">Claimed</span>
+                    </div>
+                    <div className="stat-divider"></div>
+                    <div className="stat-item unclaimed">
+                        <span className="stat-value">{stats.unclaimed}</span>
+                        <span className="stat-label">Unclaimed</span>
+                    </div>
+                </div>
 
-            {/* Courses Grid */}
-            <div className="courses-grid">
-                {courses.length === 0 ? (
+                {/* Action Bar */}
+                <div className="action-bar">
+                    <div className="search-box">
+                        <span className="search-icon">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Search courses..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="search-input"
+                        />
+                        {searchQuery && (
+                            <button className="search-clear" onClick={() => setSearchQuery('')}>×</button>
+                        )}
+                    </div>
+                    <div className="action-buttons">
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => { resetForm(); setModalTab('single'); setShowModal(true); }}
+                        >
+                            <span>+</span> Create
+                        </button>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => { resetForm(); setModalTab('bulk'); setShowModal(true); }}
+                        >
+                            <span>📥</span> Import
+                        </button>
+                    </div>
+                </div>
+
+                {/* Filters */}
+                <div className="filters-section">
+                    <div className="filters-row">
+                        <select
+                            value={filter.branch}
+                            onChange={(e) => setFilter({ ...filter, branch: e.target.value })}
+                            className="filter-select"
+                        >
+                            <option value="">All Branches</option>
+                            {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                        </select>
+                        <select
+                            value={filter.year}
+                            onChange={(e) => setFilter({ ...filter, year: e.target.value })}
+                            className="filter-select"
+                        >
+                            <option value="">All Years</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                        <select
+                            value={filter.claimed}
+                            onChange={(e) => setFilter({ ...filter, claimed: e.target.value })}
+                            className="filter-select"
+                        >
+                            <option value="">All Status</option>
+                            <option value="true">Claimed</option>
+                            <option value="false">Unclaimed</option>
+                        </select>
+                    </div>
+                    <div className="view-toggle">
+                        <button
+                            className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                            onClick={() => setViewMode('grid')}
+                            title="Grid View"
+                        >
+                            ▦
+                        </button>
+                        <button
+                            className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                            onClick={() => setViewMode('list')}
+                            title="List View"
+                        >
+                            ☰
+                        </button>
+                    </div>
+                </div>
+
+                {/* Results Count */}
+                <div className="results-info">
+                    <span>{filteredCourses.length} courses found</span>
+                    {searchQuery && <span className="search-term">for "{searchQuery}"</span>}
+                </div>
+
+                {/* Courses Display */}
+                {loading ? (
+                    <div className={`courses-${viewMode}`}>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </div>
+                ) : filteredCourses.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-icon">📚</div>
                         <h3>No courses found</h3>
-                        <p>Create your first course or use bulk import</p>
-                        <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>Create Course</button>
+                        <p>{searchQuery ? 'Try a different search term' : 'Create your first course or use bulk import'}</p>
+                        <div className="empty-actions">
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => { resetForm(); setModalTab('single'); setShowModal(true); }}
+                            >
+                                + Create Course
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => { resetForm(); setModalTab('bulk'); setShowModal(true); }}
+                            >
+                                📥 Bulk Import
+                            </button>
+                        </div>
+                    </div>
+                ) : viewMode === 'grid' ? (
+                    <div className="courses-grid">
+                        {filteredCourses.map((course, idx) => (
+                            <div
+                                key={course._id}
+                                className={`course-card ${course.claimedBy?.length > 0 ? 'claimed' : 'unclaimed'}`}
+                                style={{ '--delay': `${idx * 0.05}s` }}
+                            >
+                                <div className="card-header">
+                                    <span className="course-code-badge">{course.courseCode}</span>
+                                    <span className={`status-badge ${course.claimedBy?.length > 0 ? 'claimed' : 'unclaimed'}`}>
+                                        {course.claimedBy?.length > 0 ? '✓' : '○'}
+                                    </span>
+                                </div>
+                                <h3 className="course-name">{course.courseName}</h3>
+                                <div className="course-meta">
+                                    <span className="meta-tag branch">{getBranchShort(course.branch)}</span>
+                                    <span className="meta-tag">Y{course.year}</span>
+                                    <span className="meta-tag">S{course.semester}</span>
+                                    <span className="meta-tag batch">
+                                        {course.batch === 'all' ? 'All' : `B${course.batch}`}
+                                    </span>
+                                </div>
+                                {course.schedules?.length > 0 && (
+                                    <div className="course-schedules">
+                                        {course.schedules.slice(0, 2).map((sched, idx) => (
+                                            <span key={idx} className="schedule-tag">
+                                                {sched.day.slice(0, 3)} {sched.startTime}
+                                            </span>
+                                        ))}
+                                        {course.schedules.length > 2 && (
+                                            <span className="schedule-more">+{course.schedules.length - 2}</span>
+                                        )}
+                                    </div>
+                                )}
+                                {course.claimedBy?.length > 0 && (
+                                    <div className="claimed-by">
+                                        <span className="claimed-icon">👨‍🏫</span>
+                                        <span className="claimed-names">
+                                            {course.claimedBy.map(p => p.name.split(' ')[0]).join(', ')}
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="card-actions">
+                                    <button
+                                        className="action-btn edit"
+                                        onClick={() => handleEdit(course)}
+                                        title="Edit"
+                                    >
+                                        ✏️
+                                    </button>
+                                    <button
+                                        className="action-btn view"
+                                        onClick={() => navigate(`/admin/courses/${course._id}`)}
+                                        title="Details"
+                                    >
+                                        📊
+                                    </button>
+                                    <button
+                                        className="action-btn delete"
+                                        onClick={() => handleDelete(course)}
+                                        title="Archive"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : (
-                    courses.map(course => (
-                        <div key={course._id} className={`course-card ${course.claimedBy?.length > 0 ? 'claimed' : 'unclaimed'}`}>
-                            <div className="course-header">
-                                <div className="course-code">{course.courseCode}</div>
-                                {course.claimedBy?.length > 0 ? (
-                                    <span className="status-badge claimed">✓ Claimed ({course.claimedBy.length})</span>
-                                ) : (
-                                    <span className="status-badge unclaimed">○ Unclaimed</span>
-                                )}
-                            </div>
-                            <h3 className="course-name">{course.courseName}</h3>
-                            <div className="course-meta">
-                                <span className="meta-item">{getBranchName(course.branch)}</span>
-                                <span className="meta-item">Year {course.year}</span>
-                                <span className="meta-item">Sem {course.semester}</span>
-                                <span className="meta-item batch">{course.batch === 'all' ? 'All Batches' : `Batch ${course.batch}`}</span>
-                            </div>
-                            {course.schedules?.length > 0 && (
-                                <div className="course-schedules">
-                                    {course.schedules.map((sched, idx) => (
-                                        <div key={idx} className="schedule-item">
-                                            📅 {sched.day} {sched.startTime}-{sched.endTime}
-                                            {sched.room && <span> | 🚪 {sched.room}</span>}
-                                        </div>
-                                    ))}
+                    <div className="courses-list">
+                        {filteredCourses.map((course, idx) => (
+                            <div
+                                key={course._id}
+                                className={`course-row ${course.claimedBy?.length > 0 ? 'claimed' : 'unclaimed'}`}
+                                style={{ '--delay': `${idx * 0.03}s` }}
+                            >
+                                <div className="row-main">
+                                    <span className="course-code-badge">{course.courseCode}</span>
+                                    <div className="row-info">
+                                        <span className="row-name">{course.courseName}</span>
+                                        <span className="row-meta">
+                                            {getBranchName(course.branch)} • Year {course.year} • Sem {course.semester}
+                                        </span>
+                                    </div>
                                 </div>
-                            )}
-                            {course.claimedBy?.length > 0 && (
-                                <div className="claimed-by">👨‍🏫 {course.claimedBy.map(p => p.name).join(', ')}</div>
-                            )}
-                            <div className="course-actions">
-                                <button className="btn btn-sm btn-secondary" onClick={() => handleEdit(course)}>✏️ Edit</button>
-                                <button className="btn btn-sm btn-ghost" onClick={() => navigate(`/admin/courses/${course._id}`)}>📊 Details</button>
-                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(course)}>🗑️</button>
+                                <div className="row-middle">
+                                    {course.claimedBy?.length > 0 ? (
+                                        <span className="row-professor">
+                                            👨‍🏫 {course.claimedBy[0]?.name}
+                                            {course.claimedBy.length > 1 && ` +${course.claimedBy.length - 1}`}
+                                        </span>
+                                    ) : (
+                                        <span className="row-unclaimed">Not claimed</span>
+                                    )}
+                                </div>
+                                <div className="row-actions">
+                                    <button className="btn-sm" onClick={() => handleEdit(course)}>Edit</button>
+                                    <button className="btn-sm" onClick={() => navigate(`/admin/courses/${course._id}`)}>Details</button>
+                                    <button className="btn-sm danger" onClick={() => handleDelete(course)}>🗑️</button>
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
+            </main>
+
+            {/* Mobile Bottom Bar */}
+            <div className="mobile-bottom-bar">
+                <button
+                    className="mobile-action-btn primary"
+                    onClick={() => { resetForm(); setModalTab('single'); setShowModal(true); }}
+                >
+                    <span>+</span> Create
+                </button>
+                <button
+                    className="mobile-action-btn secondary"
+                    onClick={() => { resetForm(); setModalTab('bulk'); setShowModal(true); }}
+                >
+                    <span>📥</span> Import
+                </button>
             </div>
 
             {/* Create/Edit/Bulk Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal modal-lg modal-scrollable" onClick={e => e.stopPropagation()}>
+                    <div className="modal glass-modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>{editingCourse ? 'Edit Course' : 'Add Courses'}</h2>
+                            <h2>{editingCourse ? '✏️ Edit Course' : '📚 Add Course'}</h2>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
 
                         {/* Tab Switcher (only for new courses) */}
                         {!editingCourse && (
                             <div className="modal-tabs">
-                                <button className={`modal-tab ${modalTab === 'single' ? 'active' : ''}`} onClick={() => setModalTab('single')}>
-                                    Single Course
+                                <button
+                                    className={`modal-tab ${modalTab === 'single' ? 'active' : ''}`}
+                                    onClick={() => setModalTab('single')}
+                                >
+                                    <span>📝</span> Single Course
                                 </button>
-                                <button className={`modal-tab ${modalTab === 'bulk' ? 'active' : ''}`} onClick={() => setModalTab('bulk')}>
-                                    Bulk Import (JSON)
+                                <button
+                                    className={`modal-tab ${modalTab === 'bulk' ? 'active' : ''}`}
+                                    onClick={() => setModalTab('bulk')}
+                                >
+                                    <span>📥</span> Bulk Import
                                 </button>
                             </div>
                         )}
@@ -296,138 +507,172 @@ const AdminCourses = () => {
                             {/* Single Course Form */}
                             {modalTab === 'single' && (
                                 <form onSubmit={handleSubmit}>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label className="form-label">Course Code *</label>
-                                            <input type="text" className="form-input" placeholder="e.g., CS101"
-                                                value={formData.courseCode}
-                                                onChange={e => setFormData({ ...formData, courseCode: e.target.value })}
-                                                required disabled={!!editingCourse} />
+                                    <div className="form-section">
+                                        <h4 className="section-title">📋 Basic Info</h4>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Course Code *</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g., CS101"
+                                                    value={formData.courseCode}
+                                                    onChange={e => setFormData({ ...formData, courseCode: e.target.value })}
+                                                    required
+                                                    disabled={!!editingCourse}
+                                                    className="form-input"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Course Name *</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g., Data Structures"
+                                                    value={formData.courseName}
+                                                    onChange={e => setFormData({ ...formData, courseName: e.target.value })}
+                                                    required
+                                                    className="form-input"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Course Name *</label>
-                                            <input type="text" className="form-input" placeholder="e.g., Data Structures"
-                                                value={formData.courseName}
-                                                onChange={e => setFormData({ ...formData, courseName: e.target.value })}
-                                                required />
-                                        </div>
-                                    </div>
-
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label className="form-label">Branch *</label>
-                                            <select className="form-input" value={formData.branch}
-                                                onChange={e => setFormData({ ...formData, branch: e.target.value })}
-                                                required disabled={!!editingCourse}>
-                                                <option value="">Select Branch</option>
-                                                {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Year *</label>
-                                            <select className="form-input" value={formData.year}
-                                                onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                                                required disabled={!!editingCourse}>
-                                                {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Semester *</label>
-                                            <select className="form-input" value={formData.semester}
-                                                onChange={e => setFormData({ ...formData, semester: parseInt(e.target.value) })}
-                                                required>
-                                                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Batch *</label>
-                                            <select className="form-input" value={formData.batch}
-                                                onChange={e => setFormData({ ...formData, batch: e.target.value })}
-                                                required>
-                                                <option value="all">All Batches</option>
-                                                {['1', '2', '3', '4', '5'].map(b => <option key={b} value={b}>Batch {b}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label className="form-label">Description</label>
-                                        <textarea className="form-input" placeholder="Course description..." rows={2}
-                                            value={formData.description}
-                                            onChange={e => setFormData({ ...formData, description: e.target.value })} />
                                     </div>
 
                                     <div className="form-section">
-                                        <div className="form-section-header">
-                                            <h4>📅 Schedules</h4>
-                                            <button type="button" className="btn btn-sm btn-success"
+                                        <h4 className="section-title">🎓 Classification</h4>
+                                        <div className="form-row four-col">
+                                            <div className="form-group">
+                                                <label>Branch *</label>
+                                                <select
+                                                    value={formData.branch}
+                                                    onChange={e => setFormData({ ...formData, branch: e.target.value })}
+                                                    required
+                                                    disabled={!!editingCourse}
+                                                    className="form-input"
+                                                >
+                                                    <option value="">Select</option>
+                                                    {BRANCH_OPTIONS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Year *</label>
+                                                <select
+                                                    value={formData.year}
+                                                    onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                                                    required
+                                                    disabled={!!editingCourse}
+                                                    className="form-input"
+                                                >
+                                                    {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Semester *</label>
+                                                <select
+                                                    value={formData.semester}
+                                                    onChange={e => setFormData({ ...formData, semester: parseInt(e.target.value) })}
+                                                    required
+                                                    className="form-input"
+                                                >
+                                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Batch *</label>
+                                                <select
+                                                    value={formData.batch}
+                                                    onChange={e => setFormData({ ...formData, batch: e.target.value })}
+                                                    required
+                                                    className="form-input"
+                                                >
+                                                    <option value="all">All Batches</option>
+                                                    {['1', '2', '3', '4', '5'].map(b => <option key={b} value={b}>Batch {b}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-section">
+                                        <div className="section-header">
+                                            <h4 className="section-title">📅 Schedule</h4>
+                                            <button
+                                                type="button"
+                                                className="btn-add-schedule"
                                                 onClick={() => setFormData({
                                                     ...formData,
                                                     schedules: [...formData.schedules, { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' }]
-                                                })}>
-                                                + Add Day
+                                                })}
+                                            >
+                                                + Add
                                             </button>
                                         </div>
-                                        {formData.schedules.map((sched, idx) => (
-                                            <div key={idx} className="schedule-row">
-                                                <div className="form-row">
-                                                    <div className="form-group">
-                                                        <label className="form-label">Day</label>
-                                                        <select className="form-input" value={sched.day}
-                                                            onChange={e => {
-                                                                const newSchedules = [...formData.schedules];
-                                                                newSchedules[idx] = { ...newSchedules[idx], day: e.target.value };
-                                                                setFormData({ ...formData, schedules: newSchedules });
-                                                            }}>
-                                                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                                                        </select>
-                                                    </div>
-                                                    <div className="form-group">
-                                                        <label className="form-label">Start</label>
-                                                        <input type="time" className="form-input" value={sched.startTime}
-                                                            onChange={e => {
-                                                                const newSchedules = [...formData.schedules];
-                                                                newSchedules[idx] = { ...newSchedules[idx], startTime: e.target.value };
-                                                                setFormData({ ...formData, schedules: newSchedules });
-                                                            }} />
-                                                    </div>
-                                                    <div className="form-group">
-                                                        <label className="form-label">End</label>
-                                                        <input type="time" className="form-input" value={sched.endTime}
-                                                            onChange={e => {
-                                                                const newSchedules = [...formData.schedules];
-                                                                newSchedules[idx] = { ...newSchedules[idx], endTime: e.target.value };
-                                                                setFormData({ ...formData, schedules: newSchedules });
-                                                            }} />
-                                                    </div>
-                                                    <div className="form-group">
-                                                        <label className="form-label">Room</label>
-                                                        <input type="text" className="form-input" placeholder="LH-101"
-                                                            value={sched.room}
-                                                            onChange={e => {
-                                                                const newSchedules = [...formData.schedules];
-                                                                newSchedules[idx] = { ...newSchedules[idx], room: e.target.value };
-                                                                setFormData({ ...formData, schedules: newSchedules });
-                                                            }} />
-                                                    </div>
+                                        <div className="schedules-list">
+                                            {formData.schedules.map((sched, idx) => (
+                                                <div key={idx} className="schedule-row">
+                                                    <select
+                                                        value={sched.day}
+                                                        onChange={e => {
+                                                            const newSchedules = [...formData.schedules];
+                                                            newSchedules[idx] = { ...newSchedules[idx], day: e.target.value };
+                                                            setFormData({ ...formData, schedules: newSchedules });
+                                                        }}
+                                                        className="schedule-input day"
+                                                    >
+                                                        {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                                                    </select>
+                                                    <input
+                                                        type="time"
+                                                        value={sched.startTime}
+                                                        onChange={e => {
+                                                            const newSchedules = [...formData.schedules];
+                                                            newSchedules[idx] = { ...newSchedules[idx], startTime: e.target.value };
+                                                            setFormData({ ...formData, schedules: newSchedules });
+                                                        }}
+                                                        className="schedule-input time"
+                                                    />
+                                                    <span className="schedule-separator">→</span>
+                                                    <input
+                                                        type="time"
+                                                        value={sched.endTime}
+                                                        onChange={e => {
+                                                            const newSchedules = [...formData.schedules];
+                                                            newSchedules[idx] = { ...newSchedules[idx], endTime: e.target.value };
+                                                            setFormData({ ...formData, schedules: newSchedules });
+                                                        }}
+                                                        className="schedule-input time"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Room"
+                                                        value={sched.room}
+                                                        onChange={e => {
+                                                            const newSchedules = [...formData.schedules];
+                                                            newSchedules[idx] = { ...newSchedules[idx], room: e.target.value };
+                                                            setFormData({ ...formData, schedules: newSchedules });
+                                                        }}
+                                                        className="schedule-input room"
+                                                    />
                                                     {formData.schedules.length > 1 && (
-                                                        <button type="button" className="btn btn-sm btn-danger remove-schedule"
+                                                        <button
+                                                            type="button"
+                                                            className="btn-remove-schedule"
                                                             onClick={() => {
                                                                 const newSchedules = formData.schedules.filter((_, i) => i !== idx);
                                                                 setFormData({ ...formData, schedules: newSchedules });
-                                                            }}>
-                                                            ✕
+                                                            }}
+                                                        >
+                                                            ×
                                                         </button>
                                                     )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <div className="modal-actions">
-                                        <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                        <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>
+                                            Cancel
+                                        </button>
                                         <button type="submit" className="btn btn-primary" disabled={saving}>
-                                            {saving ? 'Saving...' : (editingCourse ? 'Update' : 'Create Course')}
+                                            {saving ? 'Saving...' : (editingCourse ? 'Update Course' : 'Create Course')}
                                         </button>
                                     </div>
                                 </form>
@@ -436,22 +681,22 @@ const AdminCourses = () => {
                             {/* Bulk Import Tab */}
                             {modalTab === 'bulk' && (
                                 <div className="bulk-import-section">
-                                    <div className="json-format-help">
+                                    <div className="json-help">
                                         <h4>📋 JSON Format</h4>
                                         <p>Paste your timetable in this JSON format:</p>
                                         <pre className="json-example">{SAMPLE_JSON}</pre>
-                                        <p className="format-note">
-                                            <strong>Branch codes:</strong> uch, ucp, uce, uec, uee, ume, umt<br />
-                                            <strong>Days:</strong> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
-                                        </p>
+                                        <div className="format-notes">
+                                            <span><strong>Branch:</strong> uch, ucp, uce, uec, uee, ume, umt</span>
+                                            <span><strong>Days:</strong> Monday - Saturday</span>
+                                        </div>
                                     </div>
 
                                     <div className="form-group">
-                                        <label className="form-label">Paste your JSON here:</label>
+                                        <label>Paste JSON:</label>
                                         <textarea
-                                            className="form-input json-textarea"
+                                            className="form-input json-input"
                                             placeholder='{"courses": [...]}'
-                                            rows={12}
+                                            rows={10}
                                             value={jsonInput}
                                             onChange={e => setJsonInput(e.target.value)}
                                         />
@@ -461,15 +706,17 @@ const AdminCourses = () => {
                                         <div className="import-result">
                                             <h4>Import Results</h4>
                                             <div className="result-stats">
-                                                <span className="result-stat success">✅ Created: {importResult.created?.length || 0}</span>
-                                                <span className="result-stat warning">⏭️ Skipped: {importResult.skipped?.length || 0}</span>
-                                                <span className="result-stat error">❌ Failed: {importResult.failed?.length || 0}</span>
+                                                <span className="result-stat success">✅ {importResult.created?.length || 0} Created</span>
+                                                <span className="result-stat warning">⏭️ {importResult.skipped?.length || 0} Skipped</span>
+                                                <span className="result-stat error">❌ {importResult.failed?.length || 0} Failed</span>
                                             </div>
                                             {importResult.failed?.length > 0 && (
-                                                <div className="failed-list">
-                                                    <strong>Failed items:</strong>
+                                                <div className="failed-items">
                                                     {importResult.failed.map((f, i) => (
-                                                        <div key={i} className="failed-item">{f.courseCode}: {f.error}</div>
+                                                        <div key={i} className="failed-item">
+                                                            <span className="failed-code">{f.courseCode}</span>
+                                                            <span className="failed-error">{f.error}</span>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             )}
@@ -477,19 +724,25 @@ const AdminCourses = () => {
                                     )}
 
                                     <div className="modal-actions">
-                                        <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                                        <button type="button" className="btn btn-success" onClick={handleBulkImport}
-                                            disabled={saving || !jsonInput.trim()}>
+                                        <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            onClick={handleBulkImport}
+                                            disabled={saving || !jsonInput.trim()}
+                                        >
                                             {saving ? 'Importing...' : '📥 Import Courses'}
                                         </button>
                                     </div>
-                                </div>
+                                </div >
                             )}
-                        </div>
-                    </div>
-                </div>
+                        </div >
+                    </div >
+                </div >
             )}
-        </div>
+        </div >
     );
 };
 

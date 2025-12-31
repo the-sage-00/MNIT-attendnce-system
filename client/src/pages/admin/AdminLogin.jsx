@@ -26,7 +26,6 @@ const AdminLogin = () => {
             });
 
             if (res.data.success) {
-                // Store token and redirect
                 localStorage.setItem('token', res.data.data.token);
                 loginWithToken(res.data.data.token, res.data.data.user);
                 navigate('/admin/dashboard');
@@ -39,45 +38,59 @@ const AdminLogin = () => {
     };
 
     return (
-        <div className="admin-login-page">
-            <div className="admin-login-card">
-                <h1>🔐 Admin Login</h1>
-                <p>System Administration Access</p>
+        <div className="auth-page admin-auth">
+            <div className="auth-card">
+                {/* Title */}
+                <h1 className="auth-title">🔐 Admin Portal</h1>
+                <p className="auth-subtitle">System Administration</p>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
+                {/* Instructions */}
+                <div className="auth-instructions admin-instructions">
+                    <div className="instruction-header">
+                        <span className="instruction-icon">ℹ️</span>
+                        <span>Admin Access</span>
+                    </div>
+                    <p className="admin-info">
+                        Use credentials from server config. Contact system admin for access.
+                    </p>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="admin-form">
+                    <div className="form-field">
                         <label>Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="admin@classcheck.com"
+                            placeholder="admin@example.com"
                             required
-                            className="form-input"
+                            autoComplete="email"
                         />
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-field">
                         <label>Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
+                            placeholder="Enter password"
                             required
-                            className="form-input"
+                            autoComplete="current-password"
                         />
                     </div>
 
-                    {error && <div className="error-message">{error}</div>}
+                    {error && <div className="form-error">⚠️ {error}</div>}
 
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                    <button type="submit" className="submit-btn" disabled={loading}>
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 
-                <div className="back-link">
-                    <Link to="/">← Back to main login</Link>
+                {/* Footer */}
+                <div className="auth-footer">
+                    <Link to="/" className="auth-link">← Back to Login</Link>
                 </div>
             </div>
         </div>

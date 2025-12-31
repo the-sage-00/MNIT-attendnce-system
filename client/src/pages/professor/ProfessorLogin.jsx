@@ -37,13 +37,30 @@ const ProfessorLogin = () => {
     };
 
     return (
-        <div className="professor-login-container">
-            <div className="login-card">
-                <div className="login-icon">👨‍🏫</div>
-                <h1>Professor Portal</h1>
-                <p>QR Attendance Management</p>
+        <div className="auth-page professor-auth">
+            <div className="auth-card">
+                {/* Icon */}
+                <div className="auth-icon professor-icon">👨‍🏫</div>
 
-                <div className="login-actions">
+                {/* Title */}
+                <h1 className="auth-title">Professor Portal</h1>
+                <p className="auth-subtitle">Attendance Management</p>
+
+                {/* Instructions */}
+                <div className="auth-instructions professor-instructions">
+                    <div className="instruction-header">
+                        <span className="instruction-icon">📋</span>
+                        <span>How It Works</span>
+                    </div>
+                    <ul className="instruction-list">
+                        <li>Sign in with any Google account</li>
+                        <li>First login requires admin approval</li>
+                        <li>Claim courses & take attendance</li>
+                    </ul>
+                </div>
+
+                {/* Google Login */}
+                <div className="auth-button-wrapper">
                     <GoogleLoginButton
                         onSuccess={handleGoogleSuccess}
                         onError={(err) => console.error(err)}
@@ -51,12 +68,12 @@ const ProfessorLogin = () => {
                     />
                 </div>
 
-                <div className="login-footer">
-                    <p>Use any Google account</p>
-                    <div className="login-links">
-                        <Link to="/">← Student Login</Link>
-                        <span> | </span>
-                        <Link to="/admin/login">Admin Login</Link>
+                {/* Footer */}
+                <div className="auth-footer">
+                    <p className="auth-note">New professors need admin approval</p>
+                    <div className="auth-links">
+                        <Link to="/" className="auth-link">🎓 Student</Link>
+                        <Link to="/admin/login" className="auth-link">🔐 Admin</Link>
                     </div>
                 </div>
             </div>

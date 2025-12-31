@@ -1,59 +1,28 @@
-.professor-login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    padding: 20px;
+/* Professor Login - Extends base auth styles */
+@import '../Login.css';
+
+/* Professor Theme */
+.professor-auth {
+    background: linear-gradient(145deg, #0a1a1a 0%, #1a2e2e 50%, #162e3e 100%);
 }
 
-.professor-login-container .login-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    padding: 3rem;
-    border-radius: 1rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    width: 100%;
-    max-width: 400px;
+.professor-auth::before {
+    background:
+        radial-gradient(circle at 40% 20%, rgba(16, 185, 129, 0.07) 0%, transparent 50%),
+        radial-gradient(circle at 60% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
 }
 
-.professor-login-container .login-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+/* Professor Icon */
+.professor-icon {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(20, 184, 166, 0.2) 100%);
 }
 
-.professor-login-container h1 {
-    color: #fff;
-    margin-bottom: 0.5rem;
+/* Professor Instructions */
+.professor-instructions {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.15);
 }
 
-.professor-login-container>.login-card>p {
-    color: #888;
-    margin-bottom: 2rem;
-}
-
-.professor-login-container .login-actions {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 2rem;
-}
-
-.professor-login-container .login-footer {
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.professor-login-container .login-links {
-    margin-top: 1rem;
-}
-
-.professor-login-container .login-links a {
-    color: #4285f4;
-    text-decoration: none;
-}
-
-.professor-login-container .login-links a:hover {
-    text-decoration: underline;
+.professor-instructions .instruction-list li::before {
+    color: rgba(16, 185, 129, 0.7);
 }

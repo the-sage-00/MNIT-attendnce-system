@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -17,27 +17,32 @@ const AdminDashboard = () => {
     const [electiveRequests, setElectiveRequests] = useState([]);
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('professors');
-    const [detailModal, setDetailModal] = useState({ open: false, type: '', title: '', data: [] });
+    const [activeTab, setActiveTab] = useState('overview');
+    const [approvalTab, setApprovalTab] = useState('professors');
+
+    // Modal states
+    const [showModal, setShowModal] = useState(false);
+    const [modalData, setModalData] = useState({ type: '', data: [], title: '' });
+    const [processingId, setProcessingId] = useState(null);
 
     useEffect(() => {
         fetchData();
     }, []);
 
     const fetchData = async () => {
+        const headers = { Authorization: `Bearer ${token}` };
         try {
-            const headers = { Authorization: `Bearer ${token}` };
-            const [analyticsRes, profRes, claimRes, electiveRes, usersRes] = await Promise.all([
-                axios.get(`${API_URL}/admin/analytics`, { headers }),
-                axios.get(`${API_URL}/admin/pending-professors`, { headers }),
-                axios.get(`${API_URL}/admin/claim-requests?status=pending`, { headers }).catch(() => ({ data: { data: [] } })),
-                axios.get(`${API_URL}/admin/elective-requests?status=pending`, { headers }).catch(() => ({ data: { data: [] } })),
+            const [analyticsRes, professorsRes, claimsRes, electivesRes, usersRes] = await Promise.all([
+                axios.get(`${API_URL}/admin/analytics`, { headers }).catch(() => ({ data: { data: null } })),
+                axios.get(`${API_URL}/admin/pending-professors`, { headers }).catch(() => ({ data: { data: [] } })),
+                axios.get(`${API_URL}/admin/claim-requests`, { headers }).catch(() => ({ data: { data: [] } })),
+                axios.get(`${API_URL}/admin/elective-requests`, { headers }).catch(() => ({ data: { data: [] } })),
                 axios.get(`${API_URL}/admin/pending-users`, { headers }).catch(() => ({ data: { data: [] } }))
             ]);
             setAnalytics(analyticsRes.data.data);
-            setPendingProfessors(profRes.data.data);
-            setClaimRequests(claimRes.data.data || []);
-            setElectiveRequests(electiveRes.data.data || []);
+            setPendingProfessors(professorsRes.data.data || []);
+            setClaimRequests(claimsRes.data.data?.filter(r => r.status === 'pending') || []);
+            setElectiveRequests(electivesRes.data.data?.filter(r => r.status === 'pending') || []);
             setPendingUsers(usersRes.data.data || []);
         } catch (error) {
             console.error('Fetch error:', error);
@@ -47,375 +52,658 @@ const AdminDashboard = () => {
         }
     };
 
+    // Action handlers
     const handleProfessorApproval = async (id, action) => {
-        if (!confirm(`Are you sure you want to ${action} this professor?`)) return;
+        setProcessingId(id);
         try {
             await axios.put(`${API_URL}/admin/approve-professor/${id}`,
                 { action },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            toast.success(`Professor ${action}ed successfully`);
+            toast.success(`Professor ${action === 'approve' ? 'approved' : 'rejected'}`);
             fetchData();
         } catch (error) {
-            toast.error('Action failed');
+            toast.error(error.response?.data?.error || 'Action failed');
         }
+        setProcessingId(null);
     };
 
     const handleClaimRequest = async (id, action) => {
+        setProcessingId(id);
         try {
             await axios.put(`${API_URL}/admin/claim-requests/${id}`,
                 { action },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            toast.success(`Claim request ${action}ed`);
+            toast.success(`Claim request ${action}d`);
             fetchData();
         } catch (error) {
-            toast.error('Action failed');
+            toast.error(error.response?.data?.error || 'Action failed');
         }
+        setProcessingId(null);
     };
 
     const handleElectiveRequest = async (id, action) => {
+        setProcessingId(id);
         try {
             await axios.put(`${API_URL}/admin/elective-requests/${id}`,
                 { action },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            toast.success(`Elective request ${action}ed`);
+            toast.success(`Elective request ${action}d`);
             fetchData();
         } catch (error) {
-            toast.error('Action failed');
+            toast.error(error.response?.data?.error || 'Action failed');
         }
+        setProcessingId(null);
     };
 
     const handleCardClick = async (type) => {
-        switch (type) {
-            case 'students':
-                try {
-                    const studentsRes = await axios.get(`${API_URL}/admin/students`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setDetailModal({
-                        open: true,
-                        type: 'students',
-                        title: `👥 All Students (${studentsRes.data.count})`,
-                        data: studentsRes.data.data
-                    });
-                } catch (err) {
-                    toast.error('Failed to load students');
-                }
-                break;
-            case 'professors':
-                try {
-                    const profRes = await axios.get(`${API_URL}/admin/professors`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setDetailModal({
-                        open: true,
-                        type: 'professors',
-                        title: `👨‍🏫 All Professors (${profRes.data.count})`,
-                        data: profRes.data.data
-                    });
-                } catch (err) {
-                    toast.error('Failed to load professors');
-                }
-                break;
-            case 'courses':
-                navigate('/admin/courses');
-                break;
-            case 'claimed':
-                navigate('/admin/courses?claimed=true');
-                break;
-            case 'pending':
-                setActiveTab('professors');
-                document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth' });
-                break;
-            case 'sessions':
-                toast.info('Active sessions overview coming soon!');
-                break;
-            default:
-                break;
+        const headers = { Authorization: `Bearer ${token}` };
+        try {
+            let res, title;
+            switch (type) {
+                case 'students':
+                    res = await axios.get(`${API_URL}/admin/students`, { headers });
+                    title = 'All Students';
+                    break;
+                case 'professors':
+                    res = await axios.get(`${API_URL}/admin/professors`, { headers });
+                    title = 'All Professors';
+                    break;
+                default:
+                    return;
+            }
+            setModalData({ type, data: res.data.data || [], title });
+            setShowModal(true);
+        } catch (error) {
+            toast.error('Failed to load data');
         }
     };
 
+    // Calculate pending totals
     const totalPending = pendingProfessors.length + claimRequests.length + electiveRequests.length + pendingUsers.length;
 
-    if (loading) {
-        return (
-            <div className="dashboard-page">
-                <div className="loading-center">
-                    <div className="spinner"></div>
-                    <p>Loading analytics...</p>
-                </div>
+    // Skeleton components
+    const SkeletonCard = () => (
+        <div className="skeleton-card">
+            <div className="skeleton-icon shimmer"></div>
+            <div className="skeleton-content">
+                <div className="skeleton-line short shimmer"></div>
+                <div className="skeleton-line shimmer"></div>
             </div>
-        );
-    }
+        </div>
+    );
 
     return (
-        <div className="dashboard-page">
+        <div className="admin-dashboard">
+            {/* Header */}
             <header className="dashboard-header">
                 <div className="header-left">
-                    <h1>🛡️ Admin Dashboard</h1>
-                    <p>System Administration</p>
+                    <div className="header-greeting">
+                        <span className="greeting-emoji">🛡️</span>
+                        <div>
+                            <p className="greeting-text">Admin Portal</p>
+                            <h1 className="user-name">{user?.name || 'Administrator'}</h1>
+                        </div>
+                    </div>
                 </div>
                 <div className="header-right">
                     <ThemeToggle />
-                    <button className="btn btn-primary" onClick={() => navigate('/admin/courses')}>
-                        📚 Manage Courses
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => navigate('/admin/students')}>
-                        Students
-                    </button>
-                    <button className="btn btn-ghost" onClick={() => { logout(); navigate('/'); }}>
-                        Logout
+                    <button className="header-avatar" onClick={() => { logout(); navigate('/'); }}>
+                        {user?.name?.charAt(0)?.toUpperCase() || 'A'}
                     </button>
                 </div>
             </header>
 
             <main className="dashboard-content">
-                {/* Analytics Cards - Clickable */}
-                <div className="analytics-grid">
-                    <div className="stat-card primary clickable" onClick={() => handleCardClick('students')}>
-                        <div className="stat-icon">👥</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{analytics?.users?.totalStudents || 0}</span>
-                            <span className="stat-label">Total Students</span>
+                {loading ? (
+                    <div className="loading-skeleton">
+                        <div className="skeleton-stats-grid">
+                            <SkeletonCard />
+                            <SkeletonCard />
+                            <SkeletonCard />
+                            <SkeletonCard />
+                            <SkeletonCard />
+                            <SkeletonCard />
                         </div>
-                        <span className="click-hint">View →</span>
                     </div>
-                    <div className="stat-card secondary clickable" onClick={() => handleCardClick('professors')}>
-                        <div className="stat-icon">👨‍🏫</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{analytics?.users?.totalProfessors || 0}</span>
-                            <span className="stat-label">Professors</span>
-                        </div>
-                        <span className="click-hint">View →</span>
-                    </div>
-                    <div className="stat-card success clickable" onClick={() => handleCardClick('courses')}>
-                        <div className="stat-icon">📚</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{analytics?.courses?.total || 0}</span>
-                            <span className="stat-label">Courses</span>
-                        </div>
-                        <span className="click-hint">Manage →</span>
-                    </div>
-                    <div className="stat-card info clickable" onClick={() => handleCardClick('claimed')}>
-                        <div className="stat-icon">✅</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{analytics?.courses?.claimed || 0}</span>
-                            <span className="stat-label">Claimed</span>
-                        </div>
-                        <span className="click-hint">Filter →</span>
-                    </div>
-                    <div className="stat-card warning clickable" onClick={() => handleCardClick('pending')}>
-                        <div className="stat-icon">⏳</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{totalPending}</span>
-                            <span className="stat-label">Pending</span>
-                        </div>
-                        <span className="click-hint">Review ↓</span>
-                    </div>
-                    <div className="stat-card danger clickable" onClick={() => handleCardClick('sessions')}>
-                        <div className="stat-icon">🔴</div>
-                        <div className="stat-info">
-                            <span className="stat-value">{analytics?.sessions?.active || 0}</span>
-                            <span className="stat-label">Active Sessions</span>
-                        </div>
-                        <span className="click-hint">View →</span>
-                    </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Quick Stats Section */}
+                        <section className="quick-stats-section">
+                            <div className="quick-stats-grid">
+                                <div
+                                    className="stat-card clickable"
+                                    onClick={() => handleCardClick('students')}
+                                >
+                                    <div className="stat-icon students">👨‍🎓</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{analytics?.totalStudents || 0}</span>
+                                        <span className="stat-label">Students</span>
+                                    </div>
+                                    <span className="stat-arrow">→</span>
+                                </div>
 
-                {/* Approval Queue Tabs */}
-                <div className="card approval-card" id="approval-section">
-                    <div className="approval-header">
-                        <h2>📋 Approval Queue</h2>
-                        <div className="tab-buttons">
+                                <div
+                                    className="stat-card clickable"
+                                    onClick={() => handleCardClick('professors')}
+                                >
+                                    <div className="stat-icon professors">👨‍🏫</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{analytics?.totalProfessors || 0}</span>
+                                        <span className="stat-label">Professors</span>
+                                    </div>
+                                    <span className="stat-arrow">→</span>
+                                </div>
+
+                                <div
+                                    className="stat-card clickable"
+                                    onClick={() => navigate('/admin/courses')}
+                                >
+                                    <div className="stat-icon courses">📚</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{analytics?.totalCourses || 0}</span>
+                                        <span className="stat-label">Courses</span>
+                                    </div>
+                                    <span className="stat-arrow">→</span>
+                                </div>
+
+                                <div className="stat-card">
+                                    <div className="stat-icon claimed">✓</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{analytics?.claimedCourses || 0}</span>
+                                        <span className="stat-label">Claimed</span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    className="stat-card highlight"
+                                    onClick={() => setActiveTab('approvals')}
+                                >
+                                    <div className="stat-icon pending">⏳</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{totalPending}</span>
+                                        <span className="stat-label">Pending</span>
+                                    </div>
+                                    {totalPending > 0 && <span className="pulse-dot"></span>}
+                                </div>
+
+                                <div className="stat-card">
+                                    <div className="stat-icon active">🔴</div>
+                                    <div className="stat-info">
+                                        <span className="stat-value">{analytics?.activeSessions || 0}</span>
+                                        <span className="stat-label">Live Sessions</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Tab Navigation */}
+                        <div className="tab-nav">
                             <button
-                                className={`tab-btn ${activeTab === 'professors' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('professors')}
+                                className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('overview')}
                             >
-                                Professors {pendingProfessors.length > 0 && <span className="badge">{pendingProfessors.length}</span>}
+                                <span className="tab-icon">📊</span>
+                                <span className="tab-text">Overview</span>
                             </button>
                             <button
-                                className={`tab-btn ${activeTab === 'claims' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('claims')}
+                                className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('approvals')}
                             >
-                                Course Claims {claimRequests.length > 0 && <span className="badge">{claimRequests.length}</span>}
+                                <span className="tab-icon">✅</span>
+                                <span className="tab-text">Approvals</span>
+                                {totalPending > 0 && <span className="tab-badge">{totalPending}</span>}
                             </button>
                             <button
-                                className={`tab-btn ${activeTab === 'electives' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('electives')}
+                                className={`tab-btn ${activeTab === 'manage' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('manage')}
                             >
-                                Electives {electiveRequests.length > 0 && <span className="badge">{electiveRequests.length}</span>}
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('users')}
-                            >
-                                Pending Users {pendingUsers.length > 0 && <span className="badge">{pendingUsers.length}</span>}
+                                <span className="tab-icon">⚙️</span>
+                                <span className="tab-text">Manage</span>
                             </button>
                         </div>
-                    </div>
 
-                    <div className="approval-content">
-                        {/* Pending Professors Tab */}
-                        {activeTab === 'professors' && (
-                            <div className="approval-list">
-                                {pendingProfessors.length === 0 ? (
-                                    <p className="empty-state">No pending professor requests.</p>
-                                ) : (
-                                    pendingProfessors.map(u => (
-                                        <div key={u._id} className="approval-item">
-                                            <div className="approval-info">
-                                                <strong>{u.name}</strong>
-                                                <span>{u.email}</span>
-                                            </div>
-                                            <div className="approval-actions">
-                                                <button className="btn btn-sm btn-success" onClick={() => handleProfessorApproval(u._id, 'approve')}>
-                                                    ✓ Approve
-                                                </button>
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleProfessorApproval(u._id, 'reject')}>
-                                                    ✕ Reject
-                                                </button>
-                                            </div>
+                        {/* Overview Tab */}
+                        {activeTab === 'overview' && (
+                            <div className="tab-content overview-content">
+                                {/* Attendance Overview */}
+                                <div className="overview-card">
+                                    <div className="card-header">
+                                        <h3>📈 Attendance Overview</h3>
+                                    </div>
+                                    <div className="overview-stats">
+                                        <div className="overview-stat">
+                                            <span className="overview-value">{analytics?.todaySessions || 0}</span>
+                                            <span className="overview-label">Sessions Today</span>
                                         </div>
-                                    ))
+                                        <div className="overview-stat">
+                                            <span className="overview-value">{analytics?.totalAttendance || 0}</span>
+                                            <span className="overview-label">Total Records</span>
+                                        </div>
+                                        <div className="overview-stat">
+                                            <span className="overview-value">{analytics?.attendanceRate || 0}%</span>
+                                            <span className="overview-label">Success Rate</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="quick-actions-card">
+                                    <div className="card-header">
+                                        <h3>⚡ Quick Actions</h3>
+                                    </div>
+                                    <div className="action-buttons">
+                                        <button
+                                            className="action-btn"
+                                            onClick={() => navigate('/admin/courses')}
+                                        >
+                                            <span className="action-icon">📚</span>
+                                            <span>Manage Courses</span>
+                                        </button>
+                                        <button
+                                            className="action-btn"
+                                            onClick={() => handleCardClick('students')}
+                                        >
+                                            <span className="action-icon">👨‍🎓</span>
+                                            <span>View Students</span>
+                                        </button>
+                                        <button
+                                            className="action-btn"
+                                            onClick={() => handleCardClick('professors')}
+                                        >
+                                            <span className="action-icon">👨‍🏫</span>
+                                            <span>View Professors</span>
+                                        </button>
+                                        <button
+                                            className="action-btn highlight"
+                                            onClick={() => setActiveTab('approvals')}
+                                        >
+                                            <span className="action-icon">⏳</span>
+                                            <span>Pending ({totalPending})</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Pending Summary */}
+                                {totalPending > 0 && (
+                                    <div className="pending-summary-card">
+                                        <div className="card-header">
+                                            <h3>⏳ Pending Approvals</h3>
+                                            <button
+                                                className="btn-view-all"
+                                                onClick={() => setActiveTab('approvals')}
+                                            >
+                                                View All →
+                                            </button>
+                                        </div>
+                                        <div className="pending-summary">
+                                            {pendingProfessors.length > 0 && (
+                                                <div className="pending-item">
+                                                    <span className="pending-icon">👨‍🏫</span>
+                                                    <span className="pending-label">Professor Registrations</span>
+                                                    <span className="pending-count">{pendingProfessors.length}</span>
+                                                </div>
+                                            )}
+                                            {claimRequests.length > 0 && (
+                                                <div className="pending-item">
+                                                    <span className="pending-icon">📚</span>
+                                                    <span className="pending-label">Course Claims</span>
+                                                    <span className="pending-count">{claimRequests.length}</span>
+                                                </div>
+                                            )}
+                                            {electiveRequests.length > 0 && (
+                                                <div className="pending-item">
+                                                    <span className="pending-icon">✨</span>
+                                                    <span className="pending-label">Elective Requests</span>
+                                                    <span className="pending-count">{electiveRequests.length}</span>
+                                                </div>
+                                            )}
+                                            {pendingUsers.length > 0 && (
+                                                <div className="pending-item">
+                                                    <span className="pending-icon">👤</span>
+                                                    <span className="pending-label">User Approvals</span>
+                                                    <span className="pending-count">{pendingUsers.length}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Course Claims Tab */}
-                        {activeTab === 'claims' && (
-                            <div className="approval-list">
-                                {claimRequests.length === 0 ? (
-                                    <p className="empty-state">No pending course claim requests.</p>
-                                ) : (
-                                    claimRequests.map(req => (
-                                        <div key={req._id} className="approval-item">
-                                            <div className="approval-info">
-                                                <strong>{req.professor?.name || 'Professor'}</strong>
-                                                <span>wants to {req.type} <strong>{req.course?.courseCode}</strong> - {req.course?.courseName}</span>
-                                                {req.message && <small className="request-message">"{req.message}"</small>}
+                        {/* Approvals Tab */}
+                        {activeTab === 'approvals' && (
+                            <div className="tab-content approvals-content">
+                                {/* Approval Sub-tabs */}
+                                <div className="approval-tabs">
+                                    <button
+                                        className={`approval-tab ${approvalTab === 'professors' ? 'active' : ''}`}
+                                        onClick={() => setApprovalTab('professors')}
+                                    >
+                                        👨‍🏫 Professors
+                                        {pendingProfessors.length > 0 && (
+                                            <span className="count">{pendingProfessors.length}</span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`approval-tab ${approvalTab === 'claims' ? 'active' : ''}`}
+                                        onClick={() => setApprovalTab('claims')}
+                                    >
+                                        📚 Claims
+                                        {claimRequests.length > 0 && (
+                                            <span className="count">{claimRequests.length}</span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`approval-tab ${approvalTab === 'electives' ? 'active' : ''}`}
+                                        onClick={() => setApprovalTab('electives')}
+                                    >
+                                        ✨ Electives
+                                        {electiveRequests.length > 0 && (
+                                            <span className="count">{electiveRequests.length}</span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`approval-tab ${approvalTab === 'users' ? 'active' : ''}`}
+                                        onClick={() => setApprovalTab('users')}
+                                    >
+                                        👤 Users
+                                        {pendingUsers.length > 0 && (
+                                            <span className="count">{pendingUsers.length}</span>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Pending Professors */}
+                                {approvalTab === 'professors' && (
+                                    <div className="approval-list">
+                                        {pendingProfessors.length === 0 ? (
+                                            <div className="empty-state">
+                                                <span className="empty-icon">✅</span>
+                                                <p>No pending professor registrations</p>
                                             </div>
-                                            <div className="approval-actions">
-                                                <button className="btn btn-sm btn-success" onClick={() => handleClaimRequest(req._id, 'approve')}>
-                                                    ✓ Approve
-                                                </button>
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleClaimRequest(req._id, 'reject')}>
-                                                    ✕ Reject
-                                                </button>
+                                        ) : (
+                                            pendingProfessors.map(prof => (
+                                                <div key={prof._id} className="approval-card">
+                                                    <div className="approval-avatar">
+                                                        {prof.name?.charAt(0) || '?'}
+                                                    </div>
+                                                    <div className="approval-info">
+                                                        <h4>{prof.name}</h4>
+                                                        <p>{prof.email}</p>
+                                                        <span className="approval-date">
+                                                            {new Date(prof.createdAt).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="approval-actions">
+                                                        <button
+                                                            className="btn-approve"
+                                                            onClick={() => handleProfessorApproval(prof._id, 'approve')}
+                                                            disabled={processingId === prof._id}
+                                                        >
+                                                            {processingId === prof._id ? '...' : '✓ Approve'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handleProfessorApproval(prof._id, 'reject')}
+                                                            disabled={processingId === prof._id}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Course Claims */}
+                                {approvalTab === 'claims' && (
+                                    <div className="approval-list">
+                                        {claimRequests.length === 0 ? (
+                                            <div className="empty-state">
+                                                <span className="empty-icon">✅</span>
+                                                <p>No pending course claims</p>
                                             </div>
-                                        </div>
-                                    ))
+                                        ) : (
+                                            claimRequests.map(req => (
+                                                <div key={req._id} className="approval-card">
+                                                    <div className="approval-icon course">📚</div>
+                                                    <div className="approval-info">
+                                                        <h4>{req.course?.courseCode} - {req.course?.courseName}</h4>
+                                                        <p>By: {req.professor?.name}</p>
+                                                        {req.message && (
+                                                            <span className="approval-message">"{req.message}"</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="approval-actions">
+                                                        <button
+                                                            className="btn-approve"
+                                                            onClick={() => handleClaimRequest(req._id, 'approve')}
+                                                            disabled={processingId === req._id}
+                                                        >
+                                                            {processingId === req._id ? '...' : '✓ Approve'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handleClaimRequest(req._id, 'reject')}
+                                                            disabled={processingId === req._id}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Elective Requests */}
+                                {approvalTab === 'electives' && (
+                                    <div className="approval-list">
+                                        {electiveRequests.length === 0 ? (
+                                            <div className="empty-state">
+                                                <span className="empty-icon">✅</span>
+                                                <p>No pending elective requests</p>
+                                            </div>
+                                        ) : (
+                                            electiveRequests.map(req => (
+                                                <div key={req._id} className="approval-card">
+                                                    <div className="approval-icon elective">✨</div>
+                                                    <div className="approval-info">
+                                                        <h4>{req.course?.courseCode} - {req.course?.courseName}</h4>
+                                                        <p>Student: {req.student?.name} ({req.student?.rollNo})</p>
+                                                    </div>
+                                                    <div className="approval-actions">
+                                                        <button
+                                                            className="btn-approve"
+                                                            onClick={() => handleElectiveRequest(req._id, 'approve')}
+                                                            disabled={processingId === req._id}
+                                                        >
+                                                            {processingId === req._id ? '...' : '✓ Approve'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handleElectiveRequest(req._id, 'reject')}
+                                                            disabled={processingId === req._id}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Pending Users */}
+                                {approvalTab === 'users' && (
+                                    <div className="approval-list">
+                                        {pendingUsers.length === 0 ? (
+                                            <div className="empty-state">
+                                                <span className="empty-icon">✅</span>
+                                                <p>No pending user approvals</p>
+                                            </div>
+                                        ) : (
+                                            pendingUsers.map(user => (
+                                                <div key={user._id} className="approval-card">
+                                                    <div className="approval-avatar">
+                                                        {user.name?.charAt(0) || '?'}
+                                                    </div>
+                                                    <div className="approval-info">
+                                                        <h4>{user.name}</h4>
+                                                        <p>{user.email}</p>
+                                                        <span className="approval-role">{user.role}</span>
+                                                    </div>
+                                                    <div className="approval-actions">
+                                                        <button className="btn-approve">✓ Approve</button>
+                                                        <button className="btn-reject">✕</button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Elective Requests Tab */}
-                        {activeTab === 'electives' && (
-                            <div className="approval-list">
-                                {electiveRequests.length === 0 ? (
-                                    <p className="empty-state">No pending elective requests.</p>
-                                ) : (
-                                    electiveRequests.map(req => (
-                                        <div key={req._id} className="approval-item">
-                                            <div className="approval-info">
-                                                <strong>{req.student?.name || 'Student'}</strong>
-                                                <span>({req.student?.rollNo}) wants <strong>{req.course?.courseCode}</strong></span>
-                                                {req.reason && <small className="request-message">Reason: "{req.reason}"</small>}
-                                            </div>
-                                            <div className="approval-actions">
-                                                <button className="btn btn-sm btn-success" onClick={() => handleElectiveRequest(req._id, 'approve')}>
-                                                    ✓ Approve
-                                                </button>
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleElectiveRequest(req._id, 'reject')}>
-                                                    ✕ Reject
-                                                </button>
-                                            </div>
+                        {/* Manage Tab */}
+                        {activeTab === 'manage' && (
+                            <div className="tab-content manage-content">
+                                <div className="manage-grid">
+                                    <Link to="/admin/courses" className="manage-card">
+                                        <div className="manage-icon">📚</div>
+                                        <div className="manage-info">
+                                            <h3>Manage Courses</h3>
+                                            <p>Create, edit, and delete courses. Bulk import available.</p>
                                         </div>
-                                    ))
-                                )}
+                                        <span className="manage-arrow">→</span>
+                                    </Link>
+
+                                    <div
+                                        className="manage-card"
+                                        onClick={() => handleCardClick('students')}
+                                    >
+                                        <div className="manage-icon">👨‍🎓</div>
+                                        <div className="manage-info">
+                                            <h3>View Students</h3>
+                                            <p>Browse all registered students and their details.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div
+                                        className="manage-card"
+                                        onClick={() => handleCardClick('professors')}
+                                    >
+                                        <div className="manage-icon">👨‍🏫</div>
+                                        <div className="manage-info">
+                                            <h3>View Professors</h3>
+                                            <p>Browse all approved professors and their courses.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div className="manage-card">
+                                        <div className="manage-icon">📊</div>
+                                        <div className="manage-info">
+                                            <h3>Attendance Reports</h3>
+                                            <p>View and export attendance reports.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div className="manage-card">
+                                        <div className="manage-icon">🔒</div>
+                                        <div className="manage-info">
+                                            <h3>Security Logs</h3>
+                                            <p>Review suspicious activities and security flags.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div className="manage-card">
+                                        <div className="manage-icon">⚙️</div>
+                                        <div className="manage-info">
+                                            <h3>System Settings</h3>
+                                            <p>Configure system parameters and defaults.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+                                </div>
                             </div>
                         )}
-
-                        {/* Pending Users Tab */}
-                        {activeTab === 'users' && (
-                            <div className="approval-list">
-                                {pendingUsers.length === 0 ? (
-                                    <p className="empty-state">No pending users with non-standard emails.</p>
-                                ) : (
-                                    pendingUsers.map(u => (
-                                        <div key={u._id} className="approval-item">
-                                            <div className="approval-info">
-                                                <strong>{u.name}</strong>
-                                                <span>{u.email}</span>
-                                                <small>Needs branch assignment</small>
-                                            </div>
-                                            <div className="approval-actions">
-                                                <button className="btn btn-sm btn-primary" onClick={() => navigate(`/admin/users/${u._id}`)}>
-                                                    📝 Review
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Attendance Overview */}
-                <div className="card attendance-overview">
-                    <h2>📈 Attendance Overview</h2>
-                    <div className="overview-grid">
-                        <div className="overview-item">
-                            <span className="overview-value">{analytics?.attendance?.total || 0}</span>
-                            <span className="overview-label">Total Records</span>
-                        </div>
-                        <div className="overview-item">
-                            <span className="overview-value">{analytics?.sessions?.today || 0}</span>
-                            <span className="overview-label">Sessions Today</span>
-                        </div>
-                        <div className="overview-item highlight">
-                            <span className="overview-value">{analytics?.attendance?.averageRate || 0}%</span>
-                            <span className="overview-label">Success Rate</span>
-                        </div>
-                    </div>
-                </div>
+                    </>
+                )}
             </main>
 
+            {/* Bottom Navigation */}
+            <nav className="bottom-nav">
+                <button
+                    className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('overview')}
+                >
+                    <span className="nav-icon">📊</span>
+                    <span className="nav-label">Overview</span>
+                </button>
+                <button
+                    className={`nav-item ${activeTab === 'approvals' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('approvals')}
+                >
+                    <span className="nav-icon">✅</span>
+                    <span className="nav-label">Approvals</span>
+                    {totalPending > 0 && <span className="nav-badge">{totalPending}</span>}
+                </button>
+                <Link to="/admin/courses" className="nav-item center-btn">
+                    <span className="center-icon-wrapper">
+                        <span className="nav-icon">📚</span>
+                    </span>
+                    <span className="nav-label">Courses</span>
+                </Link>
+                <button
+                    className={`nav-item ${activeTab === 'manage' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('manage')}
+                >
+                    <span className="nav-icon">⚙️</span>
+                    <span className="nav-label">Manage</span>
+                </button>
+                <button
+                    className="nav-item"
+                    onClick={() => { logout(); navigate('/'); }}
+                >
+                    <span className="nav-icon">🚪</span>
+                    <span className="nav-label">Logout</span>
+                </button>
+            </nav>
+
             {/* Detail Modal */}
-            {detailModal.open && (
-                <div className="modal-overlay" onClick={() => setDetailModal({ ...detailModal, open: false })}>
-                    <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            {showModal && (
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal glass-modal large" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>{detailModal.title}</h2>
-                            <button className="modal-close" onClick={() => setDetailModal({ ...detailModal, open: false })}>×</button>
+                            <h2>{modalData.title}</h2>
+                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <div className="modal-body detail-modal-body">
-                            {detailModal.data.length === 0 ? (
-                                <p className="empty-state">No data found.</p>
+                        <div className="modal-body">
+                            {modalData.data.length === 0 ? (
+                                <div className="empty-state">
+                                    <span className="empty-icon">📭</span>
+                                    <p>No data found</p>
+                                </div>
                             ) : (
-                                <div className="detail-list">
-                                    {detailModal.type === 'students' && detailModal.data.map(student => (
-                                        <div key={student._id} className="detail-item">
-                                            <div className="detail-info">
-                                                <strong>{student.name}</strong>
-                                                <span className="detail-email">{student.email}</span>
+                                <div className="modal-list">
+                                    {modalData.data.map((item, idx) => (
+                                        <div key={item._id || idx} className="modal-list-item">
+                                            <div className="list-avatar">
+                                                {item.name?.charAt(0) || '?'}
                                             </div>
-                                            <div className="detail-meta">
-                                                {student.rollNo && <span className="detail-badge">{student.rollNo}</span>}
-                                                {student.branch && <span className="detail-tag">{student.branch}</span>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {detailModal.type === 'professors' && detailModal.data.map(prof => (
-                                        <div key={prof._id} className="detail-item">
-                                            <div className="detail-info">
-                                                <strong>{prof.name}</strong>
-                                                <span className="detail-email">{prof.email}</span>
-                                            </div>
-                                            <div className="detail-meta">
-                                                <span className="detail-badge">{prof.courseCount || 0} courses</span>
+                                            <div className="list-info">
+                                                <h4>{item.name}</h4>
+                                                <p>{item.email}</p>
+                                                {item.rollNo && <span className="list-badge">{item.rollNo}</span>}
+                                                {item.branch && <span className="list-meta">{item.branch?.toUpperCase()}</span>}
                                             </div>
                                         </div>
                                     ))}

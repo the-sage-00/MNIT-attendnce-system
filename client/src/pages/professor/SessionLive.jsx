@@ -8,14 +8,7 @@ import './SessionLive.css';
 
 /**
  * Live Session Management (Professor)
- * Displays rotating QR code and real-time attendance
- * 
- * Enhanced with:
- * - Manual QR refresh button
- * - Security level display
- * - Countdown timer for QR rotation
- * - Suspicious activity indicators
- * - Failed attempts with manual accept
+ * Premium QR code display with real-time attendance tracking
  */
 
 const SessionLive = () => {
@@ -27,12 +20,14 @@ const SessionLive = () => {
     const [qrCode, setQrCode] = useState('');
     const [qrExpiry, setQrExpiry] = useState(null);
     const [countdown, setCountdown] = useState(30);
-    const [stats, setStats] = useState({ validCount: 0, totalCount: 0, suspicious: 0 });
+    const [stats, setStats] = useState({ validCount: 0, lateCount: 0, totalCount: 0, suspicious: 0 });
     const [attendees, setAttendees] = useState([]);
     const [failedAttempts, setFailedAttempts] = useState([]);
     const [isActive, setIsActive] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [acceptingId, setAcceptingId] = useState(null);
+    const [showAttendeesPanel, setShowAttendeesPanel] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const pollingRef = useRef(null);
     const countdownRef = useRef(null);
@@ -79,8 +74,11 @@ const SessionLive = () => {
             });
             setSession(res.data.data);
             setIsActive(res.data.data.isActive);
+            setLoading(false);
         } catch (error) {
             console.error('Session fetch error:', error);
+            toast.error('Failed to load session');
+            setLoading(false);
         }
     };
 
@@ -146,7 +144,6 @@ const SessionLive = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.success(`Attendance marked for ${studentName}`);
-            // Refresh both lists
             fetchStats();
             fetchFailedAttempts();
         } catch (error) {
@@ -164,9 +161,10 @@ const SessionLive = () => {
             setQrCode(res.data.data.qrCode);
             setQrExpiry(new Date(res.data.data.expiresAt).getTime());
             setCountdown(30);
+            toast.success('QR code refreshed!');
         } catch (error) {
             console.error('Force refresh error:', error);
-            alert('Failed to refresh QR');
+            toast.error('Failed to refresh QR');
         }
         setIsRefreshing(false);
     };
@@ -181,128 +179,242 @@ const SessionLive = () => {
             clearInterval(pollingRef.current);
             clearInterval(countdownRef.current);
             toast.success('Session stopped successfully!');
-            // Navigate with refresh flag
             navigate('/professor/dashboard', { state: { refresh: true } });
         } catch (error) {
             toast.error('Failed to stop session');
         }
     };
 
-    // Get status badge color
     const getStatusBadge = (status) => {
         switch (status) {
-            case 'PRESENT': return 'badge-success';
-            case 'LATE': return 'badge-warning';
-            case 'SUSPICIOUS': return 'badge-danger';
-            default: return 'badge-default';
+            case 'PRESENT': return 'present';
+            case 'LATE': return 'late';
+            case 'SUSPICIOUS': return 'suspicious';
+            default: return 'default';
         }
     };
 
+    const getCountdownColor = () => {
+        if (countdown <= 5) return 'critical';
+        if (countdown <= 10) return 'warning';
+        return 'normal';
+    };
+
+    // Calculate session duration
+    const getSessionDuration = () => {
+        if (!session?.startTime) return '0:00';
+        const start = new Date(session.startTime);
+        const now = new Date();
+        const diff = Math.floor((now - start) / 1000);
+        const hours = Math.floor(diff / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+        if (hours > 0) return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    if (loading) {
+        return (
+            <div className="session-live-page loading-state">
+                <div className="loading-content">
+                    <div className="loading-spinner"></div>
+                    <p>Loading session...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="session-live-page">
+            {/* Header */}
             <header className="live-header">
-                <div className="header-info">
-                    <h2>{session?.course?.courseName}</h2>
-                    <div className="header-badges">
-                        {isActive ? (
-                            <span className="live-badge">🔴 LIVE SESSION</span>
-                        ) : (
-                            <span className="ended-badge">⏹ SESSION ENDED</span>
-                        )}
-                        {session?.sessionNumber && (
-                            <span className="session-number-badge">
-                                Session #{session.sessionNumber}
-                            </span>
-                        )}
-                        {session?.securityLevel && session.securityLevel !== 'standard' && (
-                            <span className="security-level-badge">
-                                🔒 {session.securityLevel.toUpperCase()}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                {isActive ? (
-                    <button className="btn btn-danger" onClick={handleStopSession}>
-                        ⏹ Stop Session
+                <div className="header-left">
+                    <button className="btn-back" onClick={() => navigate('/professor/dashboard')}>
+                        ← Back
                     </button>
-                ) : (
-                    <button className="btn btn-secondary" onClick={() => navigate('/professor/dashboard')}>
-                        ← Back to Dashboard
-                    </button>
-                )}
-            </header>
-
-            <div className="live-content">
-                {/* QR Code Section */}
-                <div className="qr-section card">
-                    <div className="qr-header">
-                        <h3>Scan to Mark Attendance</h3>
-                        <div className="qr-timer">
-                            <span className={`timer-count ${countdown <= 5 ? 'expiring' : ''}`}>
-                                {countdown}s
-                            </span>
-                            <button
-                                className="btn-refresh"
-                                onClick={handleForceRefresh}
-                                disabled={isRefreshing}
-                                title="Force refresh QR"
-                            >
-                                {isRefreshing ? '⏳' : '🔄'}
-                            </button>
+                    <div className="session-title">
+                        <h1>{session?.course?.courseName || 'Live Session'}</h1>
+                        <div className="title-meta">
+                            <span className="course-code">{session?.course?.courseCode}</span>
+                            {session?.sessionNumber && (
+                                <span className="session-number">Session #{session.sessionNumber}</span>
+                            )}
                         </div>
                     </div>
-
+                </div>
+                <div className="header-right">
                     {isActive ? (
-                        <div className="qr-display">
-                            {qrCode ? (
-                                <>
-                                    <img src={qrCode} alt="Session QR" />
-                                    <div className="qr-countdown-bar">
-                                        <div
-                                            className="countdown-progress"
-                                            style={{ width: `${(countdown / 30) * 100}%` }}
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="spinner"></div>
-                            )}
-                            <p className="refresh-hint">
-                                🔐 QR rotates every 30s with HMAC security
-                            </p>
+                        <div className="live-indicator">
+                            <span className="live-dot"></span>
+                            <span className="live-text">LIVE</span>
                         </div>
                     ) : (
-                        <div className="session-ended">
-                            <p>⏹ Session Ended</p>
+                        <div className="ended-indicator">
+                            <span className="ended-text">ENDED</span>
                         </div>
                     )}
-
-                    <div className="session-info-row">
-                        <span>📍 Radius: {session?.radius || 50}m</span>
-                        <span>⏱ Started: {session?.startTime && new Date(session.startTime).toLocaleTimeString()}</span>
-                    </div>
                 </div>
+            </header>
 
-                {/* Failed Attempts Section - NEW */}
+            <main className="live-content">
+                {/* QR Section */}
+                <section className="qr-section">
+                    <div className="qr-container">
+                        {isActive ? (
+                            <>
+                                <div className="qr-frame">
+                                    {qrCode ? (
+                                        <img src={qrCode} alt="Attendance QR Code" className="qr-image" />
+                                    ) : (
+                                        <div className="qr-loading">
+                                            <div className="spinner"></div>
+                                            <p>Generating QR...</p>
+                                        </div>
+                                    )}
+                                    <div className={`countdown-ring ${getCountdownColor()}`}>
+                                        <svg viewBox="0 0 36 36">
+                                            <path
+                                                d="M18 2.0845
+                                                   a 15.9155 15.9155 0 0 1 0 31.831
+                                                   a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeOpacity="0.2"
+                                                strokeWidth="2"
+                                            />
+                                            <path
+                                                d="M18 2.0845
+                                                   a 15.9155 15.9155 0 0 1 0 31.831
+                                                   a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeDasharray={`${(countdown / 30) * 100}, 100`}
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                        <span className="countdown-value">{countdown}s</span>
+                                    </div>
+                                </div>
+
+                                <div className="qr-actions">
+                                    <button
+                                        className="btn-refresh"
+                                        onClick={handleForceRefresh}
+                                        disabled={isRefreshing}
+                                    >
+                                        {isRefreshing ? (
+                                            <span className="btn-spinner"></span>
+                                        ) : (
+                                            <span className="refresh-icon">🔄</span>
+                                        )}
+                                        <span>{isRefreshing ? 'Refreshing...' : 'Refresh QR'}</span>
+                                    </button>
+                                    <button
+                                        className="btn-stop"
+                                        onClick={handleStopSession}
+                                    >
+                                        <span className="stop-icon">⏹</span>
+                                        <span>Stop Session</span>
+                                    </button>
+                                </div>
+
+                                <div className="qr-info">
+                                    <p className="security-note">
+                                        🔐 QR rotates every 30s with HMAC security
+                                    </p>
+                                    <div className="session-params">
+                                        <span className="param">📍 Radius: {session?.radius || 50}m</span>
+                                        <span className="param">⏱ Duration: {getSessionDuration()}</span>
+                                        {session?.securityLevel && session.securityLevel !== 'standard' && (
+                                            <span className="param security">🔒 {session.securityLevel.toUpperCase()}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="session-ended-display">
+                                <div className="ended-icon">⏹</div>
+                                <h2>Session Ended</h2>
+                                <p>This session has been stopped</p>
+                                <button
+                                    className="btn-primary"
+                                    onClick={() => navigate('/professor/dashboard')}
+                                >
+                                    ← Back to Dashboard
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* Stats Section */}
+                <section className="stats-section">
+                    <div className="stats-grid">
+                        <div className="stat-card present">
+                            <div className="stat-icon">✓</div>
+                            <div className="stat-info">
+                                <span className="stat-value">{stats.validCount}</span>
+                                <span className="stat-label">Present</span>
+                            </div>
+                        </div>
+                        <div className="stat-card late">
+                            <div className="stat-icon">⏰</div>
+                            <div className="stat-info">
+                                <span className="stat-value">{stats.lateCount}</span>
+                                <span className="stat-label">Late</span>
+                            </div>
+                        </div>
+                        <div className="stat-card flagged">
+                            <div className="stat-icon">⚠️</div>
+                            <div className="stat-info">
+                                <span className="stat-value">{stats.suspicious}</span>
+                                <span className="stat-label">Flagged</span>
+                            </div>
+                        </div>
+                        <div className="stat-card total">
+                            <div className="stat-icon">👥</div>
+                            <div className="stat-info">
+                                <span className="stat-value">{stats.totalCount}</span>
+                                <span className="stat-label">Total</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Failed Attempts Section */}
                 {failedAttempts.length > 0 && (
-                    <div className="failed-attempts-section card">
-                        <h3>⚠️ Students Needing Review ({failedAttempts.length})</h3>
-                        <p className="section-hint">These students tried to mark attendance but were too far away</p>
+                    <section className="failed-section">
+                        <div className="section-header">
+                            <h3>⚠️ Needs Review</h3>
+                            <span className="count-badge">{failedAttempts.length}</span>
+                        </div>
+                        <p className="section-hint">Students who tried but were too far away</p>
                         <div className="failed-list">
                             {failedAttempts.map(attempt => (
-                                <div key={attempt._id} className="failed-item">
+                                <div key={attempt._id} className="failed-card">
                                     <div className="failed-info">
-                                        <span className="roll">{attempt.rollNo}</span>
-                                        <span className="name">{attempt.studentName}</span>
-                                        <span className="distance-badge danger">
+                                        <div className="student-avatar">
+                                            {attempt.studentName?.charAt(0) || '?'}
+                                        </div>
+                                        <div className="student-details">
+                                            <span className="student-name">{attempt.studentName}</span>
+                                            <span className="student-roll">{attempt.rollNo}</span>
+                                        </div>
+                                    </div>
+                                    <div className="failed-meta">
+                                        <span className="distance-badge">
                                             {Math.round(attempt.distance || 0)}m away
                                         </span>
-                                        <span className="time">
-                                            {new Date(attempt.attemptedAt).toLocaleTimeString()}
+                                        <span className="attempt-time">
+                                            {new Date(attempt.attemptedAt).toLocaleTimeString('en-IN', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
                                         </span>
                                     </div>
                                     <button
-                                        className="btn btn-success btn-accept"
+                                        className="btn-accept"
                                         onClick={() => handleAcceptStudent(attempt._id, attempt.studentName)}
                                         disabled={acceptingId === attempt._id}
                                     >
@@ -311,65 +423,105 @@ const SessionLive = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 )}
 
                 {/* Attendees Section */}
-                <div className="attendees-section card">
-                    <div className="stats-row">
-                        <div className="stat-box stat-present">
-                            <span className="count">{stats.validCount}</span>
-                            <span className="label">Present</span>
-                        </div>
-                        <div className="stat-box stat-late">
-                            <span className="count">{stats.lateCount || 0}</span>
-                            <span className="label">Late</span>
-                        </div>
-                        <div className="stat-box stat-suspicious">
-                            <span className="count">{stats.suspicious}</span>
-                            <span className="label">Flagged</span>
-                        </div>
-                        <div className="stat-box stat-total">
-                            <span className="count">{stats.totalCount}</span>
-                            <span className="label">Total</span>
-                        </div>
+                <section className="attendees-section">
+                    <div className="section-header">
+                        <h3>👥 Live Attendance</h3>
+                        <button
+                            className="btn-toggle-panel"
+                            onClick={() => setShowAttendeesPanel(!showAttendeesPanel)}
+                        >
+                            {showAttendeesPanel ? 'Hide' : 'Show All'}
+                        </button>
                     </div>
 
-                    <h3>Live Attendees</h3>
-                    <div className="attendees-list">
-                        {attendees.length === 0 ? (
-                            <div className="no-attendees">
-                                <p>No students have marked attendance yet</p>
+                    {attendees.length === 0 ? (
+                        <div className="empty-attendees">
+                            <span className="empty-icon">👀</span>
+                            <p>Waiting for students to mark attendance...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Recent Attendees Preview */}
+                            <div className="attendees-preview">
+                                {attendees.slice(0, 5).map((a, idx) => (
+                                    <div
+                                        key={a._id}
+                                        className="attendee-bubble"
+                                        style={{ '--delay': `${idx * 0.1}s` }}
+                                        title={`${a.studentName} - ${a.status}`}
+                                    >
+                                        {a.studentName?.charAt(0)}
+                                    </div>
+                                ))}
+                                {attendees.length > 5 && (
+                                    <div className="attendee-more">
+                                        +{attendees.length - 5}
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            attendees.map(a => (
-                                <div
-                                    key={a._id}
-                                    className={`attendee-item ${a.securityFlags?.length > 0 ? 'flagged' : ''}`}
-                                >
-                                    <span className="roll">{a.rollNo}</span>
-                                    <span className="name">{a.studentName}</span>
-                                    <span className={`status-badge ${getStatusBadge(a.status)}`}>
-                                        {a.status}
-                                    </span>
-                                    <span className="distance">{a.distance}m</span>
-                                    <span className="time">
-                                        {new Date(a.timestamp).toLocaleTimeString()}
-                                    </span>
-                                    {a.securityFlags?.length > 0 && (
-                                        <span className="flags" title={a.securityFlags.join(', ')}>
-                                            ⚠️
-                                        </span>
-                                    )}
+
+                            {/* Full Attendees List */}
+                            {showAttendeesPanel && (
+                                <div className="attendees-list">
+                                    {attendees.map(a => (
+                                        <div
+                                            key={a._id}
+                                            className={`attendee-row ${a.securityFlags?.length > 0 ? 'flagged' : ''}`}
+                                        >
+                                            <div className="attendee-avatar">
+                                                {a.studentName?.charAt(0)}
+                                            </div>
+                                            <div className="attendee-info">
+                                                <span className="attendee-name">{a.studentName}</span>
+                                                <span className="attendee-roll">{a.rollNo}</span>
+                                            </div>
+                                            <span className={`status-badge ${getStatusBadge(a.status)}`}>
+                                                {a.status}
+                                            </span>
+                                            <span className="attendee-distance">{a.distance}m</span>
+                                            <span className="attendee-time">
+                                                {new Date(a.timestamp).toLocaleTimeString('en-IN', {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </span>
+                                            {a.securityFlags?.length > 0 && (
+                                                <span className="flag-icon" title={a.securityFlags.join(', ')}>
+                                                    ⚠️
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                            ))
-                        )}
-                    </div>
+                            )}
+                        </>
+                    )}
+                </section>
+            </main>
+
+            {/* Mobile Bottom Bar */}
+            <div className="mobile-bottom-bar">
+                <div className="mobile-stats">
+                    <span className="mobile-stat present">✓ {stats.validCount}</span>
+                    <span className="mobile-stat late">⏰ {stats.lateCount}</span>
+                    <span className="mobile-stat total">👥 {stats.totalCount}</span>
                 </div>
+                {isActive ? (
+                    <button className="btn-mobile-stop" onClick={handleStopSession}>
+                        ⏹ Stop
+                    </button>
+                ) : (
+                    <button className="btn-mobile-back" onClick={() => navigate('/professor/dashboard')}>
+                        ← Back
+                    </button>
+                )}
             </div>
         </div>
     );
 };
 
 export default SessionLive;
-
