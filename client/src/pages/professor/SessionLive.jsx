@@ -321,10 +321,10 @@ const SessionLive = () => {
 
                                 <div className="qr-info">
                                     <p className="security-note">
-                                        🔐 QR rotates every 30s with HMAC security
+                                        🔐 QR rotates every {session?.qrRotationInterval ? Math.round(session.qrRotationInterval / 1000) : 30}s with HMAC security
                                     </p>
                                     <div className="session-params">
-                                        <span className="param">📍 Radius: {session?.radius || 50}m</span>
+                                        <span className="param">📍 Radius: {session?.radius || 150}m</span>
                                         <span className="param">⏱ Duration: {getSessionDuration()}</span>
                                         {session?.securityLevel && session.securityLevel !== 'standard' && (
                                             <span className="param security">🔒 {session.securityLevel.toUpperCase()}</span>

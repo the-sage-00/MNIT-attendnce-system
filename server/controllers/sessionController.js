@@ -21,6 +21,7 @@ export const createSession = async (req, res) => {
             centerLng,
             radius,
             duration, // minutes
+            qrRotationInterval, // milliseconds
             securityLevel = 'standard',
             deviceBinding = true,
             locationBinding = true,
@@ -81,7 +82,8 @@ export const createSession = async (req, res) => {
             endTime,
             centerLat,
             centerLng,
-            radius: radius || course.defaultLocation?.radius || 50,
+            radius: radius || course.defaultLocation?.radius || 150,
+            qrRotationInterval: qrRotationInterval || 30000,
             securityLevel,
             deviceBinding,
             locationBinding,
