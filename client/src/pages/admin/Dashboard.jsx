@@ -121,6 +121,45 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleDeleteUser = async (user) => {
+        const userType = user.role === 'student' ? 'student' : 'professor';
+        const confirmText = `Delete ${userType} "${user.name}"?\n\n⚠️ This will permanently delete:\n${userType === 'student'
+            ? '• All attendance records'
+            : '• All sessions created\n• All attendance records in those sessions\n• Release all claimed courses'
+            }`;
+
+        if (!confirm(confirmText)) return;
+
+        setProcessingId(user._id);
+        try {
+            const res = await axios.delete(`${API_URL}/admin/users/${user._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const deleted = res.data.data?.deletedRecords;
+            let message = `Deleted ${user.name}`;
+            if (userType === 'student' && deleted?.attendanceRecords) {
+                message += ` and ${deleted.attendanceRecords} attendance records`;
+            } else if (userType === 'professor') {
+                message += ` (${deleted?.sessions || 0} sessions, ${deleted?.attendanceRecords || 0} attendance records, ${deleted?.coursesReleased || 0} courses released)`;
+            }
+
+            toast.success(message);
+
+            // Refresh modal data
+            setModalData(prev => ({
+                ...prev,
+                data: prev.data.filter(u => u._id !== user._id)
+            }));
+
+            // Refresh analytics
+            fetchData();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to delete user');
+        }
+        setProcessingId(null);
+    };
+
     // Calculate pending totals
     const totalPending = pendingProfessors.length + claimRequests.length + electiveRequests.length + pendingUsers.length;
 
@@ -705,6 +744,14 @@ const AdminDashboard = () => {
                                                 {item.rollNo && <span className="list-badge">{item.rollNo}</span>}
                                                 {item.branch && <span className="list-meta">{item.branch?.toUpperCase()}</span>}
                                             </div>
+                                            <button
+                                                className="btn-delete-user"
+                                                onClick={() => handleDeleteUser(item)}
+                                                disabled={processingId === item._id}
+                                                title="Delete user"
+                                            >
+                                                {processingId === item._id ? '...' : '🗑️'}
+                                            </button>
                                         </div>
                                     ))}
                                 </div>

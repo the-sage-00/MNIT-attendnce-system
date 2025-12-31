@@ -1177,3 +1177,52 @@
         grid-column: span 2;
     }
 }
+
+/* ===================================
+   DELETE USER BUTTON IN MODAL
+   =================================== */
+.btn-delete-user {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    flex-shrink: 0;
+    opacity: 0;
+}
+
+.modal-list-item:hover .btn-delete-user {
+    opacity: 1;
+}
+
+.btn-delete-user:hover:not(:disabled) {
+    background: var(--error-muted);
+    border-color: var(--error);
+    transform: scale(1.1);
+}
+
+.btn-delete-user:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Update modal list item for delete button */
+.modal-list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.modal-list-item:hover {
+    background: var(--bg-hover);
+}

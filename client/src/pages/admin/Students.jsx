@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import './Students.css';
@@ -116,16 +117,19 @@ const Students = () => {
         }
     };
 
-    const deleteStudent = async (id) => {
-        if (!confirm('Are you sure you want to delete this student?')) return;
+    const deleteStudent = async (student) => {
+        const confirmText = `Delete student "${student.name}" (${student.rollNo})?\n\nThis will permanently delete all their attendance records.`;
+        if (!confirm(confirmText)) return;
 
         try {
-            await axios.delete(`${API_URL}/students/${id}`, {
+            const res = await axios.delete(`${API_URL}/admin/users/${student._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            toast.success(`Deleted ${student.name} and ${res.data.data?.deletedRecords?.attendanceRecords || 0} attendance records`);
             fetchStudents();
         } catch (error) {
             console.error('Failed to delete student:', error);
+            toast.error(error.response?.data?.error || 'Failed to delete student');
         }
     };
 
@@ -219,7 +223,7 @@ const Students = () => {
                                         <td>
                                             <button
                                                 className="btn-icon delete"
-                                                onClick={() => deleteStudent(student._id)}
+                                                onClick={() => deleteStudent(student)}
                                                 title="Delete"
                                             >
                                                 🗑️

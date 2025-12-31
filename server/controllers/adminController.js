@@ -907,6 +907,105 @@ export const bulkApproveStudents = async (req, res) => {
     }
 };
 
+/**
+ * @route   DELETE /api/admin/users/:id
+ * @desc    Delete a user (student/professor) and all related data
+ * @access  Private (Admin)
+ */
+export const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        // Cannot delete admin accounts
+        if (user.role === 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Cannot delete admin accounts'
+            });
+        }
+
+        const deletionSummary = {
+            user: { email: user.email, role: user.role, name: user.name },
+            deletedRecords: {}
+        };
+
+        // Handle STUDENT deletion
+        if (user.role === 'student') {
+            // Delete all attendance records for this student
+            const attendanceResult = await Attendance.deleteMany({ student: user._id });
+            deletionSummary.deletedRecords.attendanceRecords = attendanceResult.deletedCount;
+
+            // Delete any elective requests
+            const electiveResult = await ElectiveRequest.deleteMany({ student: user._id });
+            deletionSummary.deletedRecords.electiveRequests = electiveResult.deletedCount;
+
+            console.log(`Deleted student data: ${attendanceResult.deletedCount} attendance records, ${electiveResult.deletedCount} elective requests`);
+        }
+
+        // Handle PROFESSOR deletion
+        if (user.role === 'professor' || user.role === 'pending_professor') {
+            // Get all sessions created by this professor
+            const professorSessions = await Session.find({ professor: user._id });
+            const sessionIds = professorSessions.map(s => s._id);
+
+            // Delete all attendance records for sessions created by this professor
+            const attendanceResult = await Attendance.deleteMany({ session: { $in: sessionIds } });
+            deletionSummary.deletedRecords.attendanceRecords = attendanceResult.deletedCount;
+
+            // Delete all sessions created by this professor
+            const sessionResult = await Session.deleteMany({ professor: user._id });
+            deletionSummary.deletedRecords.sessions = sessionResult.deletedCount;
+
+            // Release all courses claimed by this professor
+            const courseResult = await Course.updateMany(
+                { claimedBy: user._id },
+                { $pull: { claimedBy: user._id } }
+            );
+            deletionSummary.deletedRecords.coursesReleased = courseResult.modifiedCount;
+
+            // Delete any claim requests by this professor
+            const claimResult = await ClaimRequest.deleteMany({ professor: user._id });
+            deletionSummary.deletedRecords.claimRequests = claimResult.deletedCount;
+
+            console.log(`Deleted professor data: ${sessionResult.deletedCount} sessions, ${attendanceResult.deletedCount} attendance records, ${courseResult.modifiedCount} courses released`);
+        }
+
+        // Log the deletion
+        await AuditLog.log({
+            eventType: 'ADMIN_DELETED_USER',
+            userId: user._id,
+            userEmail: user.email,
+            userRole: user.role,
+            adminId: req.user._id,
+            adminEmail: req.user.email,
+            metadata: {
+                deletedAt: new Date(),
+                deletionSummary
+            }
+        });
+
+        // Delete the user
+        await User.findByIdAndDelete(user._id);
+
+        console.log(`Admin ${req.user.email} deleted user: ${user.email} (${user.role})`);
+
+        res.json({
+            success: true,
+            message: `User ${user.email} and all related data deleted successfully`,
+            data: deletionSummary
+        });
+
+    } catch (error) {
+        console.error('Delete User Error:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete user' });
+    }
+};
+
 export default {
     // Professor management
     getPendingProfessors,
@@ -931,5 +1030,8 @@ export default {
     processPendingUser,
     // Analytics
     getSystemAnalytics,
-    bulkApproveStudents
+    bulkApproveStudents,
+    // User management
+    deleteUser
 };
+

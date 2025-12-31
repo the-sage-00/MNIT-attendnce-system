@@ -26,7 +26,9 @@ import {
     processPendingUser,
     // Analytics
     getSystemAnalytics,
-    bulkApproveStudents
+    bulkApproveStudents,
+    // User management
+    deleteUser
 } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -46,6 +48,11 @@ router.get('/analytics', getSystemAnalytics);
 // ============================================
 router.get('/students', getAllStudents);
 router.get('/professors', getAllProfessors);
+
+// ============================================
+// USER MANAGEMENT (DELETE)
+// ============================================
+router.delete('/users/:id', deleteUser);
 
 // ============================================
 // PROFESSOR MANAGEMENT
@@ -93,3 +100,4 @@ router.put('/pending-users/:id', processPendingUser);
 router.post('/bulk-approve', bulkApproveStudents);
 
 export default router;
+
