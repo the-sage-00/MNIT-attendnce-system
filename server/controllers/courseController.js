@@ -317,18 +317,25 @@ export const getStudentCourses = async (req, res) => {
     try {
         const user = req.user;
 
-        const branchCode = user.branchCode;
+        let branchCode = user.branchCode;
         const admissionYear = user.admissionYear;
 
         if (!branchCode || !admissionYear) {
             return res.json({ success: true, data: [], message: 'Missing academic info' });
         }
 
+        // Normalize branch code aliases
+        // UCP is an alias for UCS (Computer Science)
+        const branchAliases = {
+            'ucp': 'ucs',  // Computer Science
+        };
+        const normalizedBranch = branchAliases[branchCode.toLowerCase()] || branchCode.toLowerCase();
+
         const academicState = calculateAcademicState(admissionYear);
 
         // Auto-enrolled courses (matching branch and year)
         const autoEnrolledCourses = await Course.find({
-            branch: branchCode.toLowerCase(),
+            branch: normalizedBranch,
             year: academicState.year,
             isArchived: false
         })
@@ -387,12 +394,16 @@ export const getStudentTimetable = async (req, res) => {
             });
         }
 
+        // Normalize branch code aliases (UCP = UCS for Computer Science)
+        const branchAliases = { 'ucp': 'ucs' };
+        const normalizedBranch = branchAliases[branchCode.toLowerCase()] || branchCode.toLowerCase();
+
         const academicState = calculateAcademicState(admissionYear);
 
         // Get all courses for this student's branch, year, and batch (or 'all' batch)
         // Courses with schedules array
         const courses = await Course.find({
-            branch: branchCode.toLowerCase(),
+            branch: normalizedBranch,
             year: academicState.year,
             isArchived: false,
             $or: [
