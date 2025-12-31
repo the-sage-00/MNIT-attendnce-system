@@ -424,8 +424,13 @@ export const markAttendance = async (req, res) => {
         const branchMatch = studentBranchCode === courseBranchCode;
         const yearMatch = course.year === academicState?.year;
 
-        // Check batch eligibility: 'all' means everyone, otherwise must match student's batch
-        const batchMatch = course.batch === 'all' || course.batch === student.batch;
+        // Check batch eligibility:
+        // - If course has no batch or batch is 'all', everyone is eligible
+        // - If student has no batch set, they're eligible for 'all' courses only
+        // - Otherwise, batch must match
+        const courseBatch = course.batch || 'all';
+        const studentBatch = student.batch;
+        const batchMatch = courseBatch === 'all' || courseBatch === studentBatch;
 
         // Check if student has this course as an approved elective
         const isElective = student.electiveCourses?.some(
@@ -433,7 +438,7 @@ export const markAttendance = async (req, res) => {
         );
 
         // Student is eligible if:
-        // 1. Branch, year AND batch match their academic state, OR
+        // 1. Branch and year match AND batch is compatible, OR
         // 2. The course is in their approved electiveCourses
         const isEligible = (branchMatch && yearMatch && batchMatch) || isElective;
 
