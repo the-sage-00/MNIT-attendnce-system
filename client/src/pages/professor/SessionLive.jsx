@@ -180,10 +180,11 @@ const SessionLive = () => {
             setIsActive(false);
             clearInterval(pollingRef.current);
             clearInterval(countdownRef.current);
-            alert('Session Stopped');
-            navigate('/professor/dashboard');
+            toast.success('Session stopped successfully!');
+            // Navigate with refresh flag
+            navigate('/professor/dashboard', { state: { refresh: true } });
         } catch (error) {
-            alert('Failed to stop session');
+            toast.error('Failed to stop session');
         }
     };
 

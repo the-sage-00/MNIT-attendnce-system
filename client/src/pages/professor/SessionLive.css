@@ -427,83 +427,92 @@
 }
 
 /* ========================================
-   FAILED ATTEMPTS SECTION
+   FAILED ATTEMPTS SECTION - COMPACT
    ======================================== */
 
 .failed-attempts-section {
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
     border: 1px solid rgba(245, 158, 11, 0.3);
     border-left: 4px solid #f59e0b;
-    padding: 1.5rem;
-    border-radius: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
     grid-column: 1 / -1;
 }
 
 .failed-attempts-section h3 {
     color: #f59e0b;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
 }
 
 .section-hint {
     color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
 }
 
 .failed-list {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
 }
 
 .failed-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
     background: var(--bg-surface);
     border-radius: 0.5rem;
     border: 1px solid var(--border-subtle);
+    flex: 0 0 auto;
 }
 
 .failed-info {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .failed-info .roll {
     font-weight: 700;
     font-family: monospace;
     color: var(--text-primary);
+    font-size: 0.8rem;
 }
 
 .failed-info .name {
     color: var(--text-primary);
+    font-size: 0.8rem;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .distance-badge.danger {
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
-    padding: 0.2rem 0.5rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 0.25rem;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: 600;
 }
 
 .failed-info .time {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    display: none;
 }
 
 .btn-accept {
-    padding: 0.5rem 1rem;
+    padding: 0.3rem 0.6rem;
     background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 0.35rem;
     font-weight: 600;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
@@ -511,7 +520,7 @@
 
 .btn-accept:hover:not(:disabled) {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
 }
 
 .btn-accept:disabled {
@@ -521,16 +530,10 @@
 
 @media (max-width: 640px) {
     .failed-item {
-        flex-direction: column;
-        gap: 0.75rem;
-        align-items: flex-start;
+        flex: 1 1 100%;
     }
 
-    .failed-info {
-        width: 100%;
-    }
-
-    .btn-accept {
-        width: 100%;
+    .failed-info .name {
+        max-width: 80px;
     }
 }

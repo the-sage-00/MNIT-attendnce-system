@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,7 @@ const BRANCH_OPTIONS = [
 const ProfessorDashboard = () => {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
+    const navState = useLocation();
 
     const [claimedCourses, setClaimedCourses] = useState([]);
     const [claimableCourses, setClaimableCourses] = useState([]);
@@ -66,6 +67,15 @@ const ProfessorDashboard = () => {
         fetchData();
         getLocation();
     }, []);
+
+    // Refresh data when coming back from stopped session
+    useEffect(() => {
+        if (navState.state?.refresh) {
+            fetchData();
+            // Clear the state to prevent re-refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [navState.state]);
 
     useEffect(() => {
         if (showSessionModal && !location) getLocation();
