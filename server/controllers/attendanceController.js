@@ -417,13 +417,35 @@ export const markAttendance = async (req, res) => {
         // CHECK 7: Academic Eligibility
         // ========================================
         const academicState = student.academicState;
-        const studentBranch = student.branchCode || student.branch;
+        const studentBranchCode = (student.branchCode || '').toLowerCase();
+        const courseBranchCode = (course.branch || '').toLowerCase();
 
-        const branchMatch = (course.branch === student.branch) || (course.branch === student.branchCode);
+        // Check if student's branch matches course branch
+        const branchMatch = studentBranchCode === courseBranchCode;
         const yearMatch = course.year === academicState?.year;
-        const semMatch = !course.semester || course.semester === academicState?.semester;
 
-        if (!branchMatch || !yearMatch) {
+        // Check if student has this course as an approved elective
+        const isElective = student.electiveCourses?.some(
+            ec => ec.toString() === course._id.toString()
+        );
+
+        // Student is eligible if:
+        // 1. Branch and year match their academic state, OR
+        // 2. The course is in their approved electiveCourses
+        const isEligible = (branchMatch && yearMatch) || isElective;
+
+        if (!isEligible) {
+            console.log('Eligibility check failed:', {
+                studentBranchCode,
+                courseBranchCode,
+                branchMatch,
+                studentYear: academicState?.year,
+                courseYear: course.year,
+                yearMatch,
+                isElective,
+                electiveCourses: student.electiveCourses
+            });
+
             await logAudit('ATTENDANCE_FAILED', {
                 userId: student._id,
                 userEmail: student.email,
@@ -433,15 +455,18 @@ export const markAttendance = async (req, res) => {
                 failureCode: 'ACADEMIC_MISMATCH',
                 ipAddress,
                 metadata: {
-                    studentBranch,
-                    courseBranch: course.branch,
+                    studentBranchCode,
+                    courseBranchCode,
+                    branchMatch,
                     studentYear: academicState?.year,
-                    courseYear: course.year
+                    courseYear: course.year,
+                    yearMatch,
+                    isElective
                 }
             });
             return res.status(403).json({
                 success: false,
-                error: `You are not eligible for this course. Required: ${course.branch} Year ${course.year}`
+                error: `You are not eligible for this course. Required: ${course.branch?.toUpperCase()} Year ${course.year}`
             });
         }
         validationResults.academicMatch = true;

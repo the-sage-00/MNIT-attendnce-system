@@ -404,21 +404,28 @@ export const getStudentSessionInfo = async (req, res) => {
         // Check if student is eligible for this course
         const student = req.user;
         if (student.role === 'student') {
-            const branchMatch = (session.course.branch === student.branch) ||
-                (session.course.branch === student.branchCode);
+            const studentBranchCode = (student.branchCode || '').toLowerCase();
+            const courseBranchCode = (session.course.branch || '').toLowerCase();
+
+            const branchMatch = studentBranchCode === courseBranchCode;
             const yearMatch = session.course.year === student.academicState?.year;
 
-            if (!branchMatch || !yearMatch) {
+            // Check if course is in student's approved electives
+            const isElective = student.electiveCourses?.some(
+                ec => ec.toString() === session.course._id.toString()
+            );
+
+            if (!((branchMatch && yearMatch) || isElective)) {
                 return res.status(403).json({
                     success: false,
                     error: 'You are not eligible for this course',
                     details: {
                         required: {
-                            branch: session.course.branch,
+                            branch: session.course.branch?.toUpperCase(),
                             year: session.course.year
                         },
                         your: {
-                            branch: student.branchCode || student.branch,
+                            branch: studentBranchCode.toUpperCase(),
                             year: student.academicState?.year
                         }
                     }
