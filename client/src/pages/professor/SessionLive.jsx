@@ -204,7 +204,11 @@ const SessionLive = () => {
                 <div className="header-info">
                     <h2>{session?.course?.courseName}</h2>
                     <div className="header-badges">
-                        <span className="live-badge">🔴 LIVE SESSION</span>
+                        {isActive ? (
+                            <span className="live-badge">🔴 LIVE SESSION</span>
+                        ) : (
+                            <span className="ended-badge">⏹ SESSION ENDED</span>
+                        )}
                         {session?.sessionNumber && (
                             <span className="session-number-badge">
                                 Session #{session.sessionNumber}
@@ -217,9 +221,15 @@ const SessionLive = () => {
                         )}
                     </div>
                 </div>
-                <button className="btn btn-danger" onClick={handleStopSession}>
-                    ⏹ Stop Session
-                </button>
+                {isActive ? (
+                    <button className="btn btn-danger" onClick={handleStopSession}>
+                        ⏹ Stop Session
+                    </button>
+                ) : (
+                    <button className="btn btn-secondary" onClick={() => navigate('/professor/dashboard')}>
+                        ← Back to Dashboard
+                    </button>
+                )}
             </header>
 
             <div className="live-content">
