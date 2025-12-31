@@ -34,7 +34,7 @@ const ProfessorDashboard = () => {
 
     // Session Modal State
     const [showSessionModal, setShowSessionModal] = useState(false);
-    const [newSession, setNewSession] = useState({ courseId: '', duration: 60, radius: 50 });
+    const [newSession, setNewSession] = useState({ courseId: '', duration: 60, radius: 150, qrInterval: 30 });
     const [location, setLocation] = useState(null);
     const [locationError, setLocationError] = useState('');
     const [gettingLocation, setGettingLocation] = useState(false);
@@ -163,6 +163,7 @@ const ProfessorDashboard = () => {
                 courseId: newSession.courseId,
                 duration: newSession.duration,
                 radius: newSession.radius,
+                qrRotationInterval: newSession.qrInterval * 1000,
                 centerLat: location.lat,
                 centerLng: location.lng
             }, { headers: { Authorization: `Bearer ${token}` } });
@@ -790,6 +791,19 @@ const ProfessorDashboard = () => {
                                                 max="500"
                                             />
                                         </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>QR Rotation (seconds)</label>
+                                        <select
+                                            value={newSession.qrInterval}
+                                            onChange={e => setNewSession({ ...newSession, qrInterval: parseInt(e.target.value) })}
+                                            className="form-input"
+                                        >
+                                            <option value="15">15s - High Security</option>
+                                            <option value="30">30s - Recommended</option>
+                                            <option value="60">60s - Standard</option>
+                                            <option value="120">2 min - Relaxed</option>
+                                        </select>
                                     </div>
                                     <div className="location-status">
                                         {location ? (
