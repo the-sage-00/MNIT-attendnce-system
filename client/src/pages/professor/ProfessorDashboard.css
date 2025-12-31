@@ -1513,3 +1513,95 @@ textarea.form-input {
         padding: var(--space-8);
     }
 }
+
+/* ===================================
+   LOCATION STATUS & ACCURACY BADGE
+   =================================== */
+.location-status {
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+}
+
+.location-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.location-ok {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--success);
+    font-weight: 500;
+}
+
+.location-pending {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-muted);
+}
+
+.location-icon {
+    font-size: 1.1rem;
+}
+
+.accuracy-badge {
+    font-size: var(--text-xs);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.accuracy-badge.good {
+    background: var(--success-muted);
+    color: var(--success);
+}
+
+.accuracy-badge.moderate {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+}
+
+.accuracy-badge.poor {
+    background: var(--error-muted);
+    color: var(--error);
+}
+
+.location-coords {
+    font-family: var(--font-mono);
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 0;
+    font-family: var(--font-sans);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.btn-link:hover {
+    opacity: 0.8;
+}
+
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-default);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

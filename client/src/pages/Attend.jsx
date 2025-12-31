@@ -243,19 +243,35 @@ const Attend = () => {
             );
             setDistance(dist);
 
-            // V5: Show clearer distance feedback
-            const accuracyInfo = locationData.accuracy ? ` (±${Math.round(locationData.accuracy)}m accuracy)` : '';
-            if (dist > sessionInfo.radius) {
-                setLocationStatus(`⚠️ You are ${dist}m away from the classroom. Allowed: ${sessionInfo.radius}m${accuracyInfo}`);
+            // Calculate effective radius using the SAME formula as server
+            // This ensures client and server show consistent "allowed" values
+            const gpsAccuracy = locationData.accuracy || 30;
+            const sessionRadius = sessionInfo.radius || 50;
+            const minimumBuffer = 30; // Same as server
+            const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) : 0;
+            const effectiveRadius = sessionRadius + minimumBuffer + accuracyContribution;
+
+            // V5: Show clearer distance feedback with effective radius
+            const accuracyNote = gpsAccuracy > 50
+                ? ` (GPS accuracy: ±${Math.round(gpsAccuracy)}m - results may vary)`
+                : '';
+
+            if (dist > effectiveRadius) {
+                setLocationStatus(
+                    `⚠️ GPS shows ${dist}m from class center. ` +
+                    `Allowed range: ~${Math.round(effectiveRadius)}m${accuracyNote}`
+                );
             } else {
-                setLocationStatus(`✅ Within range: ${dist}m from center${accuracyInfo}`);
+                setLocationStatus(
+                    `✅ Within allowed range (GPS distance: ~${dist}m)${accuracyNote}`
+                );
                 // Success vibration
                 if (navigator.vibrate) {
                     navigator.vibrate([100, 50, 100]);
                 }
             }
         } else {
-            setLocationStatus(`✅ Location acquired${locationData.accuracy ? ` (±${Math.round(locationData.accuracy)}m)` : ''}`);
+            setLocationStatus(`✅ Location acquired${locationData.accuracy ? ` (GPS accuracy: ±${Math.round(locationData.accuracy)}m)` : ''}`);
         }
 
         setStep('confirm');
@@ -416,47 +432,73 @@ const Attend = () => {
     const renderLocationInfo = () => {
         if (!location) return null;
 
-        // Calculate approximate effective radius for display
+        // Calculate approximate effective radius for display (matching server logic)
         const gpsAccuracy = location.accuracy || 30;
-        const effectiveRadius = (sessionInfo?.radius || 50) + 30 + (gpsAccuracy > 20 ? (gpsAccuracy - 20) : 0);
+        const sessionRadius = sessionInfo?.radius || 50;
+        const minimumBuffer = 30;
+        const accuracyContribution = gpsAccuracy > 20 ? (gpsAccuracy - 20) : 0;
+        const effectiveRadius = sessionRadius + minimumBuffer + accuracyContribution;
         const isWithinRange = distance <= effectiveRadius;
 
         return (
             <div className="location-info">
-                <p>📍 Lat: {location.latitude.toFixed(6)}</p>
-                <p>📍 Lng: {location.longitude.toFixed(6)}</p>
-                {location.accuracy && (
-                    <p className={location.accuracy > 50 ? 'accuracy-warning' : ''}>
-                        🎯 GPS Accuracy: ±{Math.round(location.accuracy)}m
-                        {location.accuracy > 50 && ' ⚠️ (poor signal)'}
-                    </p>
-                )}
-                {distance !== null && (
-                    <>
-                        <p className={isWithinRange ? 'within-range' : 'out-of-range'}>
-                            📏 Distance from class: {distance}m {isWithinRange ? '✓' : '⚠️'}
-                        </p>
-                        <p className="effective-radius-note" style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
-                            Effective range: ~{Math.round(effectiveRadius)}m (adjusted for GPS accuracy)
-                        </p>
-                    </>
-                )}
-                {location.accuracy > 80 && (
-                    <div className="gps-warning" style={{
-                        background: 'rgba(255, 193, 7, 0.2)',
-                        border: '1px solid rgba(255, 193, 7, 0.5)',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                        marginTop: '8px',
-                        fontSize: '0.8rem'
+                {/* GPS Accuracy Indicator */}
+                <div className="accuracy-indicator" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    background: gpsAccuracy > 50 ? 'rgba(255, 193, 7, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                    borderRadius: '8px',
+                    marginBottom: '8px'
+                }}>
+                    <span>🎯 GPS Accuracy</span>
+                    <span style={{
+                        fontWeight: 600,
+                        color: gpsAccuracy > 50 ? 'var(--warning)' : 'var(--success)'
                     }}>
-                        ⚠️ <strong>Indoor GPS Note:</strong> Your GPS accuracy is low ({Math.round(location.accuracy)}m).
-                        The system will add extra buffer to account for this. Move near a window for better signal.
+                        ±{Math.round(gpsAccuracy)}m {gpsAccuracy > 50 ? '(poor)' : '(good)'}
+                    </span>
+                </div>
+
+                {/* Distance Status */}
+                {distance !== null && (
+                    <div className={`distance-status ${isWithinRange ? 'success' : 'warning'}`} style={{
+                        padding: '12px',
+                        background: isWithinRange ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                    }}>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 4px 0' }}>
+                            {isWithinRange ? '✅' : '⚠️'} ~{distance}m
+                        </p>
+                        <p style={{ fontSize: '0.8rem', margin: 0, opacity: 0.8 }}>
+                            GPS-estimated distance from classroom
+                        </p>
+                        <p style={{ fontSize: '0.7rem', margin: '4px 0 0 0', opacity: 0.6 }}>
+                            Allowed range: ~{Math.round(effectiveRadius)}m (includes GPS accuracy buffer)
+                        </p>
                     </div>
                 )}
+
+                {/* GPS Limitation Note */}
+                <div style={{
+                    marginTop: '10px',
+                    padding: '8px 10px',
+                    background: 'var(--bg-surface)',
+                    borderRadius: '6px',
+                    fontSize: '0.7rem',
+                    color: 'var(--text-muted)',
+                    lineHeight: 1.4
+                }}>
+                    💡 <strong>Note:</strong> GPS distance is an estimate based on phone signals.
+                    Indoor accuracy varies (typically ±30-100m). The system automatically adjusts
+                    the allowed range based on your GPS accuracy.
+                </div>
             </div>
         );
     };
+
 
 
     return (

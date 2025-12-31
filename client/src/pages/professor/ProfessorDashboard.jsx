@@ -54,14 +54,32 @@ const ProfessorDashboard = () => {
         }
         navigator.geolocation.getCurrentPosition(
             pos => {
-                setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                const accuracy = pos.coords.accuracy;
+                setLocation({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: accuracy
+                });
                 setGettingLocation(false);
+
+                // Warn if accuracy is very poor (common on desktops using IP-based geolocation)
+                if (accuracy > 1000) {
+                    setLocationError(`⚠️ GPS accuracy is very poor (±${Math.round(accuracy / 1000)}km). This usually happens on desktops. Consider using a mobile device or entering coordinates manually.`);
+                } else if (accuracy > 200) {
+                    setLocationError(`⚠️ GPS accuracy is ±${Math.round(accuracy)}m. For best results, use a mobile device with GPS.`);
+                }
             },
             err => {
-                setLocationError('Location permission denied');
+                if (err.code === err.PERMISSION_DENIED) {
+                    setLocationError('Location permission denied. Please enable location access.');
+                } else if (err.code === err.POSITION_UNAVAILABLE) {
+                    setLocationError('Location unavailable. Try using a mobile device with GPS.');
+                } else {
+                    setLocationError('Could not get location. Please try again or enter manually.');
+                }
                 setGettingLocation(false);
             },
-            { enableHighAccuracy: true, timeout: 10000 }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     }, []);
 
@@ -807,9 +825,22 @@ const ProfessorDashboard = () => {
                                     </div>
                                     <div className="location-status">
                                         {location ? (
-                                            <div className="location-ok">
-                                                <span className="location-icon">📍</span>
-                                                <span>Location acquired</span>
+                                            <div className="location-details">
+                                                <div className="location-ok">
+                                                    <span className="location-icon">📍</span>
+                                                    <span>Location acquired</span>
+                                                    {location.accuracy && (
+                                                        <span className={`accuracy-badge ${location.accuracy > 500 ? 'poor' : location.accuracy > 100 ? 'moderate' : 'good'}`}>
+                                                            ±{location.accuracy > 1000 ? `${Math.round(location.accuracy / 1000)}km` : `${Math.round(location.accuracy)}m`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="location-coords" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                                                </div>
+                                                <button type="button" className="btn-link" style={{ fontSize: '0.75rem', marginTop: '4px' }} onClick={getLocation}>
+                                                    🔄 Refresh location
+                                                </button>
                                             </div>
                                         ) : gettingLocation ? (
                                             <div className="location-pending">
@@ -821,7 +852,50 @@ const ProfessorDashboard = () => {
                                                 📍 Get Location
                                             </button>
                                         )}
-                                        {locationError && <span className="location-error">{locationError}</span>}
+                                        {locationError && (
+                                            <div className="location-error-box" style={{
+                                                marginTop: '8px',
+                                                padding: '8px 12px',
+                                                background: 'rgba(255, 193, 7, 0.15)',
+                                                border: '1px solid rgba(255, 193, 7, 0.4)',
+                                                borderRadius: '8px',
+                                                fontSize: '0.8rem'
+                                            }}>
+                                                {locationError}
+                                            </div>
+                                        )}
+
+                                        {/* Manual coordinate input for desktop/poor GPS */}
+                                        {location && location.accuracy > 500 && (
+                                            <div className="manual-coords" style={{ marginTop: '12px', padding: '12px', background: 'var(--card-bg)', borderRadius: '8px' }}>
+                                                <p style={{ fontSize: '0.8rem', marginBottom: '8px', color: 'var(--text-muted)' }}>
+                                                    💡 <strong>Tip:</strong> For better accuracy, you can enter your classroom coordinates manually:
+                                                </p>
+                                                <div className="form-row" style={{ gap: '8px' }}>
+                                                    <input
+                                                        type="number"
+                                                        step="0.000001"
+                                                        placeholder="Latitude (e.g., 26.8607)"
+                                                        value={location.lat}
+                                                        onChange={e => setLocation({ ...location, lat: parseFloat(e.target.value) || 0, accuracy: 10 })}
+                                                        className="form-input"
+                                                        style={{ flex: 1, fontSize: '0.85rem' }}
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        step="0.000001"
+                                                        placeholder="Longitude (e.g., 75.8166)"
+                                                        value={location.lng}
+                                                        onChange={e => setLocation({ ...location, lng: parseFloat(e.target.value) || 0, accuracy: 10 })}
+                                                        className="form-input"
+                                                        style={{ flex: 1, fontSize: '0.85rem' }}
+                                                    />
+                                                </div>
+                                                <p style={{ fontSize: '0.7rem', marginTop: '6px', color: 'var(--text-muted)' }}>
+                                                    Find coordinates on <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Google Maps</a> (right-click → "What's here?")
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="modal-actions">
