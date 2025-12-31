@@ -319,6 +319,7 @@ export const getStudentCourses = async (req, res) => {
 
         const branchCode = user.branchCode;
         const admissionYear = user.admissionYear;
+        const studentBatch = user.batch;
 
         if (!branchCode || !admissionYear) {
             return res.json({ success: true, data: [], message: 'Missing academic info' });
@@ -332,14 +333,20 @@ export const getStudentCourses = async (req, res) => {
             ? ['ucp', 'ucs']
             : [branchLower];
 
-        // Auto-enrolled courses (matching branch and year)
+        // Auto-enrolled courses (matching branch, year, AND batch)
+        // Show courses for student's specific batch OR courses for 'all' batches
         const autoEnrolledCourses = await Course.find({
             branch: { $in: branchesToMatch },
             year: academicState.year,
-            isArchived: false
+            isArchived: false,
+            $or: [
+                { batch: 'all' },
+                { batch: { $exists: false } },  // Courses without batch field
+                { batch: studentBatch }
+            ]
         })
             .populate('claimedBy', 'name email')
-            .select('courseName courseCode branch year semester schedule claimedBy');
+            .select('courseName courseCode branch year semester batch schedule claimedBy');
 
         // Elective courses (from user's electiveCourses array)
         const userWithElectives = await User.findById(user._id)
