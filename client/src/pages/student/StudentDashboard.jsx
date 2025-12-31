@@ -19,6 +19,10 @@ const StudentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
     const [savingBatch, setSavingBatch] = useState(false);
+    const [selectedDay, setSelectedDay] = useState(() => {
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        return DAYS.includes(today) ? today : 'Monday';
+    });
 
     useEffect(() => {
         fetchData();
@@ -192,35 +196,112 @@ const StudentDashboard = () => {
 
                         {/* Timetable Tab */}
                         {activeTab === 'timetable' && (
-                            <div className="card timetable-section">
-                                <h3>📅 Weekly Timetable</h3>
+                            <div className="timetable-section">
+                                {/* Header with batch info */}
+                                <div className="timetable-header">
+                                    <h3>📅 My Timetable</h3>
+                                    {timetable?.academicInfo && (
+                                        <div className="timetable-info">
+                                            <span className="info-badge">{timetable.academicInfo.branch?.toUpperCase()}</span>
+                                            <span className="info-badge">Year {timetable.academicInfo.year}</span>
+                                            {timetable.academicInfo.batch && (
+                                                <span className="info-badge batch">Batch {timetable.academicInfo.batch}</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 {!timetable?.byDay ? (
-                                    <p className="empty-state">No timetable available for your branch and year yet.</p>
-                                ) : (
-                                    <div className="timetable-grid">
-                                        {DAYS.map(day => {
-                                            const slots = timetable.byDay[day] || [];
-                                            return (
-                                                <div key={day} className="timetable-day">
-                                                    <h4 className="day-header">{day}</h4>
-                                                    {slots.length === 0 ? (
-                                                        <p className="no-classes">No classes</p>
-                                                    ) : (
-                                                        <div className="day-slots">
-                                                            {slots.map((slot, idx) => (
-                                                                <div key={idx} className="timetable-slot">
-                                                                    <span className="slot-time">{slot.startTime} - {slot.endTime}</span>
-                                                                    <span className="slot-course">{slot.course?.courseCode || 'TBA'}</span>
-                                                                    <span className="slot-name">{slot.course?.courseName || ''}</span>
-                                                                    {slot.room && <span className="slot-room">🚪 {slot.room}</span>}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                    <div className="timetable-empty">
+                                        <div className="empty-icon">📭</div>
+                                        <p>No timetable available yet</p>
+                                        {!user?.batch && <p className="empty-hint">⚠️ Set your batch first!</p>}
                                     </div>
+                                ) : (
+                                    <>
+                                        {/* Mobile: Day selector tabs */}
+                                        <div className="day-tabs-mobile">
+                                            {DAYS.map(day => {
+                                                const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }) === day;
+                                                const hasClasses = (timetable.byDay[day] || []).length > 0;
+                                                return (
+                                                    <button
+                                                        key={day}
+                                                        className={`day-tab ${selectedDay === day ? 'active' : ''} ${isToday ? 'today' : ''} ${!hasClasses ? 'empty' : ''}`}
+                                                        onClick={() => setSelectedDay(day)}
+                                                    >
+                                                        <span className="day-short">{day.slice(0, 3)}</span>
+                                                        {isToday && <span className="today-dot"></span>}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Mobile: Selected day's classes */}
+                                        <div className="day-classes-mobile">
+                                            <h4 className="selected-day-title">
+                                                {selectedDay}
+                                                {new Date().toLocaleDateString('en-US', { weekday: 'long' }) === selectedDay && (
+                                                    <span className="today-badge">Today</span>
+                                                )}
+                                            </h4>
+                                            {(timetable.byDay[selectedDay] || []).length === 0 ? (
+                                                <div className="no-classes-card">
+                                                    <span className="relax-icon">🎉</span>
+                                                    <p>No classes!</p>
+                                                </div>
+                                            ) : (
+                                                <div className="classes-list">
+                                                    {(timetable.byDay[selectedDay] || []).map((slot, idx) => (
+                                                        <div key={idx} className="class-card">
+                                                            <div className="class-time">
+                                                                <span className="time-start">{slot.startTime}</span>
+                                                                <span className="time-separator">-</span>
+                                                                <span className="time-end">{slot.endTime}</span>
+                                                            </div>
+                                                            <div className="class-details">
+                                                                <span className="class-code">{slot.course?.courseCode}</span>
+                                                                <span className="class-name">{slot.course?.courseName}</span>
+                                                                {slot.room && <span className="class-room">📍 {slot.room}</span>}
+                                                                {slot.course?.batch && slot.course.batch !== 'all' && (
+                                                                    <span className="class-batch">Batch {slot.course.batch}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Desktop: Full week grid */}
+                                        <div className="week-grid-desktop">
+                                            {DAYS.map(day => {
+                                                const slots = timetable.byDay[day] || [];
+                                                const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }) === day;
+                                                return (
+                                                    <div key={day} className={`day-column ${isToday ? 'today' : ''}`}>
+                                                        <div className="day-header">
+                                                            {day.slice(0, 3)}
+                                                            {isToday && <span className="today-marker">●</span>}
+                                                        </div>
+                                                        <div className="day-slots">
+                                                            {slots.length === 0 ? (
+                                                                <div className="slot-empty">-</div>
+                                                            ) : (
+                                                                slots.map((slot, idx) => (
+                                                                    <div key={idx} className="slot-card">
+                                                                        <div className="slot-time">{slot.startTime}</div>
+                                                                        <div className="slot-code">{slot.course?.courseCode}</div>
+                                                                        {slot.room && <div className="slot-room">{slot.room}</div>}
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         )}

@@ -826,11 +826,364 @@
     font-weight: 600;
 }
 
-@media (max-width: 768px) {
-    .timetable-grid {
-        grid-template-columns: 1fr;
+/* ========================================
+   MOBILE-FIRST TIMETABLE DESIGN
+   ======================================== */
+
+.timetable-section {
+    background: var(--bg-elevated);
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.timetable-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+}
+
+.timetable-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.timetable-info {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.info-badge {
+    background: var(--bg-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.info-badge.batch {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: white;
+}
+
+.timetable-empty {
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.timetable-empty .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.timetable-empty p {
+    color: var(--text-muted);
+}
+
+.timetable-empty .empty-hint {
+    color: #f59e0b;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* Day Tabs - Mobile */
+.day-tabs-mobile {
+    display: flex;
+    padding: 0.75rem;
+    gap: 0.25rem;
+    background: var(--bg-surface);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.day-tab {
+    flex: 1;
+    min-width: 50px;
+    padding: 0.75rem 0.5rem;
+    border: none;
+    background: var(--bg-elevated);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.day-tab .day-short {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.day-tab.active {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+}
+
+.day-tab.active .day-short {
+    color: white;
+}
+
+.day-tab.today:not(.active) {
+    border: 2px solid var(--primary);
+}
+
+.day-tab.empty:not(.active) {
+    opacity: 0.5;
+}
+
+.today-dot {
+    width: 6px;
+    height: 6px;
+    background: #10b981;
+    border-radius: 50%;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+}
+
+.day-tab.active .today-dot {
+    background: white;
+}
+
+/* Selected Day Classes - Mobile */
+.day-classes-mobile {
+    padding: 1rem;
+}
+
+.selected-day-title {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.today-badge {
+    background: #10b981;
+    color: white;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.no-classes-card {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.no-classes-card .relax-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.no-classes-card p {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.class-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border-radius: 1rem;
+    border: 1px solid var(--border-subtle);
+    transition: all 0.2s;
+}
+
+.class-card:active {
+    transform: scale(0.98);
+}
+
+.class-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    border-radius: 0.75rem;
+    min-width: 60px;
+}
+
+.time-start,
+.time-end {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: white;
+}
+
+.time-separator {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.class-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.class-code {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.class-name {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.class-room {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.class-batch {
+    display: inline-block;
+    margin-top: 0.25rem;
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* Desktop Grid - Hidden on Mobile */
+.week-grid-desktop {
+    display: none;
+}
+
+/* DESKTOP: 768px and above */
+@media (min-width: 768px) {
+
+    /* Hide mobile elements on desktop */
+    .day-tabs-mobile {
+        display: none;
     }
 
+    .day-classes-mobile {
+        display: none;
+    }
+
+    /* Show desktop grid */
+    .week-grid-desktop {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .day-column {
+        background: var(--bg-surface);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        min-height: 200px;
+    }
+
+    .day-column.today {
+        border: 2px solid var(--primary);
+    }
+
+    .day-column .day-header {
+        padding: 0.75rem;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        background: var(--bg-elevated);
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .day-column.today .day-header {
+        background: linear-gradient(135deg, var(--primary), #7c3aed);
+        color: white;
+    }
+
+    .today-marker {
+        color: #10b981;
+        font-size: 0.5rem;
+    }
+
+    .day-column.today .today-marker {
+        color: white;
+    }
+
+    .day-column .day-slots {
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .slot-empty {
+        text-align: center;
+        padding: 1rem;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .slot-card {
+        padding: 0.6rem;
+        background: var(--bg-elevated);
+        border-radius: 0.5rem;
+        border-left: 3px solid var(--primary);
+    }
+
+    .slot-card .slot-time {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+
+    .slot-card .slot-code {
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        font-family: monospace;
+    }
+
+    .slot-card .slot-room {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+
+    .timetable-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+/* Existing responsive rules for other elements */
+@media (max-width: 768px) {
     .course-item {
         flex-direction: column;
     }
