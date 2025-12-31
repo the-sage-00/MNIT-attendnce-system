@@ -73,6 +73,7 @@
    - Select course, set duration (10-180 mins)
    - Set GPS radius (20-500m) and QR rotation (15s-2min)
    - Allow location access → QR code appears
+       (> Note: Laptops often show inaccurate locations or cache old data. If the location is wrong, try generating the QR code from a mobile phone instead.)
 5. **Monitor Attendance**: View real-time student check-ins
 6. **Stop Session**: Click "Stop Session" when done
 
