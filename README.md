@@ -50,8 +50,8 @@
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@classcheck.com` | `Admin@123` |
-| **Professor** | Sign up with any `@mnit.ac.in` email | Your chosen password |
-| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`) | Your chosen password |
+| **Professor** | Sign up with any email 
+| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`)
 
 ### 📖 Step-by-Step Usage Guide
 
