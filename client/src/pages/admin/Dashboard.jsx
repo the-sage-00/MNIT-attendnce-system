@@ -179,7 +179,7 @@ const AdminDashboard = () => {
                                 >
                                     <div className="stat-icon students">👨‍🎓</div>
                                     <div className="stat-info">
-                                        <span className="stat-value">{analytics?.totalStudents || 0}</span>
+                                        <span className="stat-value">{analytics?.users?.totalStudents || 0}</span>
                                         <span className="stat-label">Students</span>
                                     </div>
                                     <span className="stat-arrow">→</span>
@@ -191,7 +191,7 @@ const AdminDashboard = () => {
                                 >
                                     <div className="stat-icon professors">👨‍🏫</div>
                                     <div className="stat-info">
-                                        <span className="stat-value">{analytics?.totalProfessors || 0}</span>
+                                        <span className="stat-value">{analytics?.users?.totalProfessors || 0}</span>
                                         <span className="stat-label">Professors</span>
                                     </div>
                                     <span className="stat-arrow">→</span>
@@ -203,7 +203,7 @@ const AdminDashboard = () => {
                                 >
                                     <div className="stat-icon courses">📚</div>
                                     <div className="stat-info">
-                                        <span className="stat-value">{analytics?.totalCourses || 0}</span>
+                                        <span className="stat-value">{analytics?.courses?.total || 0}</span>
                                         <span className="stat-label">Courses</span>
                                     </div>
                                     <span className="stat-arrow">→</span>
@@ -212,7 +212,7 @@ const AdminDashboard = () => {
                                 <div className="stat-card">
                                     <div className="stat-icon claimed">✓</div>
                                     <div className="stat-info">
-                                        <span className="stat-value">{analytics?.claimedCourses || 0}</span>
+                                        <span className="stat-value">{analytics?.courses?.claimed || 0}</span>
                                         <span className="stat-label">Claimed</span>
                                     </div>
                                 </div>
@@ -232,7 +232,7 @@ const AdminDashboard = () => {
                                 <div className="stat-card">
                                     <div className="stat-icon active">🔴</div>
                                     <div className="stat-info">
-                                        <span className="stat-value">{analytics?.activeSessions || 0}</span>
+                                        <span className="stat-value">{analytics?.sessions?.active || 0}</span>
                                         <span className="stat-label">Live Sessions</span>
                                     </div>
                                 </div>
