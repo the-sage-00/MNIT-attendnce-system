@@ -27,25 +27,22 @@ const SAMPLE_JSON = `{
       "branch": "ucs",
       "year": 2,
       "semester": 3,
-      "schedule": {
-        "day": "Monday",
-        "startTime": "09:00",
-        "endTime": "10:00",
-        "room": "LH-101"
-      }
+      "batch": "all",
+      "schedules": [
+        { "day": "Monday", "startTime": "09:00", "endTime": "10:00", "room": "LH-101" },
+        { "day": "Wednesday", "startTime": "14:00", "endTime": "15:00", "room": "LH-101" }
+      ]
     },
     {
       "courseCode": "CS102",
-      "courseName": "Algorithms",
+      "courseName": "Lab Work",
       "branch": "ucs",
       "year": 2,
       "semester": 3,
-      "schedule": {
-        "day": "Tuesday",
-        "startTime": "10:00",
-        "endTime": "11:00",
-        "room": "LH-102"
-      }
+      "batch": "1",
+      "schedules": [
+        { "day": "Thursday", "startTime": "10:00", "endTime": "12:00", "room": "Lab-101" }
+      ]
     }
   ]
 }`;
@@ -61,7 +58,8 @@ const AdminCourses = () => {
     // Single course form
     const [formData, setFormData] = useState({
         courseCode: '', courseName: '', description: '', branch: '', year: 1, semester: 1,
-        schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+        batch: 'all',
+        schedules: [{ day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' }],
         defaultDuration: 60, lateThreshold: 15
     });
 
@@ -94,7 +92,8 @@ const AdminCourses = () => {
     const resetForm = () => {
         setFormData({
             courseCode: '', courseName: '', description: '', branch: '', year: 1, semester: 1,
-            schedule: { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+            batch: 'all',
+            schedules: [{ day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' }],
             defaultDuration: 60, lateThreshold: 15
         });
         setEditingCourse(null);
@@ -150,7 +149,10 @@ const AdminCourses = () => {
             courseCode: course.courseCode, courseName: course.courseName,
             description: course.description || '', branch: course.branch,
             year: course.year, semester: course.semester,
-            schedule: course.schedule || { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' },
+            batch: course.batch || 'all',
+            schedules: course.schedules?.length > 0
+                ? course.schedules
+                : [{ day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' }],
             defaultDuration: course.defaultDuration || 60, lateThreshold: course.lateThreshold || 15
         });
         setEditingCourse(course);
@@ -244,11 +246,16 @@ const AdminCourses = () => {
                                 <span className="meta-item">{getBranchName(course.branch)}</span>
                                 <span className="meta-item">Year {course.year}</span>
                                 <span className="meta-item">Sem {course.semester}</span>
+                                <span className="meta-item batch">{course.batch === 'all' ? 'All Batches' : `Batch ${course.batch}`}</span>
                             </div>
-                            {course.schedule?.day && (
-                                <div className="course-schedule">
-                                    📅 {course.schedule.day} {course.schedule.startTime}-{course.schedule.endTime}
-                                    {course.schedule.room && <span> | 🚪 {course.schedule.room}</span>}
+                            {course.schedules?.length > 0 && (
+                                <div className="course-schedules">
+                                    {course.schedules.map((sched, idx) => (
+                                        <div key={idx} className="schedule-item">
+                                            📅 {sched.day} {sched.startTime}-{sched.endTime}
+                                            {sched.room && <span> | 🚪 {sched.room}</span>}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                             {course.claimedBy?.length > 0 && (
@@ -332,6 +339,15 @@ const AdminCourses = () => {
                                                 {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
                                             </select>
                                         </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Batch *</label>
+                                            <select className="form-input" value={formData.batch}
+                                                onChange={e => setFormData({ ...formData, batch: e.target.value })}
+                                                required>
+                                                <option value="all">All Batches</option>
+                                                {['1', '2', '3', '4', '5'].map(b => <option key={b} value={b}>Batch {b}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div className="form-group">
@@ -342,32 +358,70 @@ const AdminCourses = () => {
                                     </div>
 
                                     <div className="form-section">
-                                        <h4>📅 Schedule</h4>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label className="form-label">Day</label>
-                                                <select className="form-input" value={formData.schedule.day}
-                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, day: e.target.value } })}>
-                                                    {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Start</label>
-                                                <input type="time" className="form-input" value={formData.schedule.startTime}
-                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, startTime: e.target.value } })} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">End</label>
-                                                <input type="time" className="form-input" value={formData.schedule.endTime}
-                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, endTime: e.target.value } })} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Room</label>
-                                                <input type="text" className="form-input" placeholder="LH-101"
-                                                    value={formData.schedule.room}
-                                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, room: e.target.value } })} />
-                                            </div>
+                                        <div className="form-section-header">
+                                            <h4>📅 Schedules</h4>
+                                            <button type="button" className="btn btn-sm btn-success"
+                                                onClick={() => setFormData({
+                                                    ...formData,
+                                                    schedules: [...formData.schedules, { day: 'Monday', startTime: '09:00', endTime: '10:00', room: '' }]
+                                                })}>
+                                                + Add Day
+                                            </button>
                                         </div>
+                                        {formData.schedules.map((sched, idx) => (
+                                            <div key={idx} className="schedule-row">
+                                                <div className="form-row">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Day</label>
+                                                        <select className="form-input" value={sched.day}
+                                                            onChange={e => {
+                                                                const newSchedules = [...formData.schedules];
+                                                                newSchedules[idx] = { ...newSchedules[idx], day: e.target.value };
+                                                                setFormData({ ...formData, schedules: newSchedules });
+                                                            }}>
+                                                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Start</label>
+                                                        <input type="time" className="form-input" value={sched.startTime}
+                                                            onChange={e => {
+                                                                const newSchedules = [...formData.schedules];
+                                                                newSchedules[idx] = { ...newSchedules[idx], startTime: e.target.value };
+                                                                setFormData({ ...formData, schedules: newSchedules });
+                                                            }} />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">End</label>
+                                                        <input type="time" className="form-input" value={sched.endTime}
+                                                            onChange={e => {
+                                                                const newSchedules = [...formData.schedules];
+                                                                newSchedules[idx] = { ...newSchedules[idx], endTime: e.target.value };
+                                                                setFormData({ ...formData, schedules: newSchedules });
+                                                            }} />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Room</label>
+                                                        <input type="text" className="form-input" placeholder="LH-101"
+                                                            value={sched.room}
+                                                            onChange={e => {
+                                                                const newSchedules = [...formData.schedules];
+                                                                newSchedules[idx] = { ...newSchedules[idx], room: e.target.value };
+                                                                setFormData({ ...formData, schedules: newSchedules });
+                                                            }} />
+                                                    </div>
+                                                    {formData.schedules.length > 1 && (
+                                                        <button type="button" className="btn btn-sm btn-danger remove-schedule"
+                                                            onClick={() => {
+                                                                const newSchedules = formData.schedules.filter((_, i) => i !== idx);
+                                                                setFormData({ ...formData, schedules: newSchedules });
+                                                            }}>
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     <div className="modal-actions">
