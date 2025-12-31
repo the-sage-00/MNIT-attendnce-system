@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import './SessionLive.css';
@@ -14,6 +15,7 @@ import './SessionLive.css';
  * - Security level display
  * - Countdown timer for QR rotation
  * - Suspicious activity indicators
+ * - Failed attempts with manual accept
  */
 
 const SessionLive = () => {
@@ -27,8 +29,10 @@ const SessionLive = () => {
     const [countdown, setCountdown] = useState(30);
     const [stats, setStats] = useState({ validCount: 0, totalCount: 0, suspicious: 0 });
     const [attendees, setAttendees] = useState([]);
+    const [failedAttempts, setFailedAttempts] = useState([]);
     const [isActive, setIsActive] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [acceptingId, setAcceptingId] = useState(null);
 
     const pollingRef = useRef(null);
     const countdownRef = useRef(null);
@@ -40,6 +44,7 @@ const SessionLive = () => {
         // Start polling for stats every 5 seconds
         pollingRef.current = setInterval(() => {
             fetchStats();
+            fetchFailedAttempts();
         }, 5000);
 
         return () => {
@@ -119,6 +124,37 @@ const SessionLive = () => {
         }
     };
 
+    const fetchFailedAttempts = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/attendance/session/${id}/failed-attempts`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setFailedAttempts(res.data.data?.filter(a => a.status === 'PENDING') || []);
+        } catch (error) {
+            console.error('Failed attempts fetch error:', error);
+        }
+    };
+
+    const handleAcceptStudent = async (attemptId, studentName) => {
+        if (!confirm(`Accept attendance for ${studentName}?`)) return;
+
+        setAcceptingId(attemptId);
+        try {
+            await axios.post(`${API_URL}/attendance/failed-attempt/${attemptId}/accept`, {
+                note: 'Manually accepted during live session'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(`Attendance marked for ${studentName}`);
+            // Refresh both lists
+            fetchStats();
+            fetchFailedAttempts();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to accept');
+        }
+        setAcceptingId(null);
+    };
+
     const handleForceRefresh = async () => {
         setIsRefreshing(true);
         try {
@@ -168,6 +204,11 @@ const SessionLive = () => {
                     <h2>{session?.course?.courseName}</h2>
                     <div className="header-badges">
                         <span className="live-badge">🔴 LIVE SESSION</span>
+                        {session?.sessionNumber && (
+                            <span className="session-number-badge">
+                                Session #{session.sessionNumber}
+                            </span>
+                        )}
                         {session?.securityLevel && session.securityLevel !== 'standard' && (
                             <span className="security-level-badge">
                                 🔒 {session.securityLevel.toUpperCase()}
@@ -231,6 +272,37 @@ const SessionLive = () => {
                     </div>
                 </div>
 
+                {/* Failed Attempts Section - NEW */}
+                {failedAttempts.length > 0 && (
+                    <div className="failed-attempts-section card">
+                        <h3>⚠️ Students Needing Review ({failedAttempts.length})</h3>
+                        <p className="section-hint">These students tried to mark attendance but were too far away</p>
+                        <div className="failed-list">
+                            {failedAttempts.map(attempt => (
+                                <div key={attempt._id} className="failed-item">
+                                    <div className="failed-info">
+                                        <span className="roll">{attempt.rollNo}</span>
+                                        <span className="name">{attempt.studentName}</span>
+                                        <span className="distance-badge danger">
+                                            {Math.round(attempt.distance || 0)}m away
+                                        </span>
+                                        <span className="time">
+                                            {new Date(attempt.attemptedAt).toLocaleTimeString()}
+                                        </span>
+                                    </div>
+                                    <button
+                                        className="btn btn-success btn-accept"
+                                        onClick={() => handleAcceptStudent(attempt._id, attempt.studentName)}
+                                        disabled={acceptingId === attempt._id}
+                                    >
+                                        {acceptingId === attempt._id ? '...' : '✓ Accept'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Attendees Section */}
                 <div className="attendees-section card">
                     <div className="stats-row">
@@ -289,3 +361,4 @@ const SessionLive = () => {
 };
 
 export default SessionLive;
+

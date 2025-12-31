@@ -411,3 +411,126 @@
         display: none;
     }
 }
+
+/* ========================================
+   SESSION NUMBER BADGE
+   ======================================== */
+
+.session-number-badge {
+    padding: 0.25rem 0.75rem;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid var(--primary);
+    border-radius: 9999px;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* ========================================
+   FAILED ATTEMPTS SECTION
+   ======================================== */
+
+.failed-attempts-section {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-left: 4px solid #f59e0b;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    grid-column: 1 / -1;
+}
+
+.failed-attempts-section h3 {
+    color: #f59e0b;
+    margin-bottom: 0.5rem;
+}
+
+.section-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.failed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.failed-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--bg-surface);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-subtle);
+}
+
+.failed-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.failed-info .roll {
+    font-weight: 700;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+.failed-info .name {
+    color: var(--text-primary);
+}
+
+.distance-badge.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.failed-info .time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.btn-accept {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-accept:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-accept:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .failed-item {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .failed-info {
+        width: 100%;
+    }
+
+    .btn-accept {
+        width: 100%;
+    }
+}
