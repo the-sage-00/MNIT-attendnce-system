@@ -70,6 +70,8 @@ const sessionSchema = new mongoose.Schema({
     },
 
     // V5: Adaptive Geo-Fencing Configuration
+    // NOTE: The session's `radius` field is the actual allowed distance set by professor
+    // These adaptiveGeo settings provide ADDITIONAL flexibility based on GPS accuracy
     adaptiveGeo: {
         enabled: {
             type: Boolean,
@@ -77,20 +79,20 @@ const sessionSchema = new mongoose.Schema({
         },
         baseRadius: {
             type: Number,
-            default: 50  // meters - base allowed distance
+            default: 50  // meters - minimum base, but actual base = max(this, session.radius)
         },
         maxRadius: {
             type: Number,
-            default: 200  // meters - maximum adaptive radius cap
+            default: 400  // meters - maximum adaptive radius cap (increased for indoor GPS)
         },
         accuracyMultiplier: {
             type: Number,
-            default: 1.5  // How much to expand radius based on GPS accuracy
+            default: 1.0  // How much to expand radius based on GPS accuracy (reduced from 1.5)
         },
         deviceTolerances: {
             mobile: { type: Number, default: 1.0 },   // No extra tolerance for mobile
-            tablet: { type: Number, default: 1.2 },   // 20% extra for tablets
-            desktop: { type: Number, default: 1.5 }   // 50% extra for desktops (poor GPS)
+            tablet: { type: Number, default: 1.1 },   // 10% extra for tablets
+            desktop: { type: Number, default: 1.2 }   // 20% extra for desktops (poor GPS)
         }
     },
 

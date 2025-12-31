@@ -507,16 +507,29 @@ export const markAttendance = async (req, res) => {
                     centerLng: session.centerLng,
                     radius: session.radius,
                     requiredAccuracy: session.requiredAccuracy,
-                    // V5: Pass adaptive geo configuration
+                    // V5: Pass adaptive geo configuration with updated defaults
                     adaptiveGeo: session.adaptiveGeo || {
                         enabled: true,
                         baseRadius: 50,
-                        maxRadius: 200,
-                        accuracyMultiplier: 1.5
+                        maxRadius: 400,  // Increased for indoor GPS
+                        accuracyMultiplier: 1.0
                     }
                 },
                 strictMode: session.securityLevel === 'strict' || session.securityLevel === 'paranoid',
                 deviceType  // V5: Pass device type for adaptive radius
+            });
+
+            // Debug logging for location validation
+            console.log('Location validation result:', {
+                studentEmail: student.email,
+                sessionId: session._id,
+                sessionRadius: session.radius,
+                studentLocation: { latitude, longitude, accuracy },
+                sessionLocation: { lat: session.centerLat, lng: session.centerLng },
+                distance: locationValidation.distance,
+                effectiveRadius: locationValidation.allowedRadius,
+                valid: locationValidation.valid,
+                radiusDetails: locationValidation.details?.distance?.radiusDetails
             });
 
             // Add location security flags
@@ -536,6 +549,15 @@ export const markAttendance = async (req, res) => {
 
             if (!locationValidation.valid) {
                 await trackFailedAttempt(student._id.toString(), 'LOCATION_INVALID');
+
+                console.warn('Location validation FAILED:', {
+                    studentEmail: student.email,
+                    distance: locationValidation.distance,
+                    allowedRadius: locationValidation.allowedRadius,
+                    sessionRadius: session.radius,
+                    gpsAccuracy: accuracy
+                });
+
                 await logAudit('ATTENDANCE_FAILED', {
                     userId: student._id,
                     userEmail: student.email,

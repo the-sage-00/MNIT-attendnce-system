@@ -165,6 +165,10 @@ export const detectSpoofing = (location, previousLocation = null) => {
 /**
  * V5: Calculate effective radius using adaptive geo-fencing
  * Takes into account GPS accuracy and device type
+ * 
+ * IMPORTANT: The session's `radius` field is the ACTUAL allowed distance set by professor.
+ * The adaptiveGeo settings are for ADDITIONAL flexibility based on GPS accuracy.
+ * 
  * @param {object} sessionLocation - Session geo configuration
  * @param {number} gpsAccuracy - Reported GPS accuracy in meters
  * @param {string} deviceType - 'mobile', 'tablet', or 'desktop'
@@ -173,23 +177,44 @@ export const detectSpoofing = (location, previousLocation = null) => {
 export const calculateEffectiveRadius = (sessionLocation, gpsAccuracy, deviceType = 'mobile') => {
     const adaptiveGeo = sessionLocation.adaptiveGeo || {};
 
-    // Defaults for v5
-    const baseRadius = adaptiveGeo.baseRadius || sessionLocation.radius || 50;
-    const maxRadius = adaptiveGeo.maxRadius || 200;
-    const accuracyMultiplier = adaptiveGeo.accuracyMultiplier || 1.5;
+    // FIXED: Use the session's actual radius as the base, NOT adaptiveGeo.baseRadius
+    // The professor sets radius (e.g., 150m), that should be the minimum allowed distance
+    const sessionRadius = sessionLocation.radius || 50;
+
+    // adaptiveGeo.baseRadius is for internal calculations, but we should never go below sessionRadius
+    const baseRadius = Math.max(sessionRadius, adaptiveGeo.baseRadius || 50);
+
+    // Maximum radius cap - should be at least the session radius + buffer
+    const maxRadius = Math.max(
+        adaptiveGeo.maxRadius || 300,
+        sessionRadius + 100  // At least sessionRadius + 100m buffer
+    );
+
+    const accuracyMultiplier = adaptiveGeo.accuracyMultiplier || 1.0; // Reduced from 1.5
     const deviceTolerances = adaptiveGeo.deviceTolerances || {
         mobile: 1.0,
-        tablet: 1.2,
-        desktop: 1.5
+        tablet: 1.1,
+        desktop: 1.2
     };
 
     // Get device tolerance multiplier
     const deviceMultiplier = deviceTolerances[deviceType] || 1.0;
 
-    // Calculate adaptive radius based on GPS accuracy
-    // If GPS accuracy is ±50m, we expand the base radius proportionally
-    const accuracyContribution = (gpsAccuracy || 0) * accuracyMultiplier;
-    const adaptiveRadius = baseRadius + accuracyContribution;
+    // Add GPS accuracy buffer
+    // Indoor GPS can be off by 50-100m, so we need to account for this
+    const gpsAccuracyValue = gpsAccuracy || 30; // Default to 30m if not provided
+
+    // Minimum buffer for indoor usage (GPS is always somewhat inaccurate indoors)
+    const minimumBuffer = 30; // Always add 30m buffer for indoor GPS drift
+
+    // Calculate adaptive expansion based on GPS accuracy
+    // Only expand if accuracy is worse than 20m (good GPS)
+    const accuracyContribution = gpsAccuracyValue > 20
+        ? (gpsAccuracyValue - 20) * accuracyMultiplier
+        : 0;
+
+    // Effective radius = base radius + minimum buffer + accuracy contribution
+    const adaptiveRadius = baseRadius + minimumBuffer + accuracyContribution;
 
     // Apply device tolerance and cap at maximum
     const effectiveRadius = Math.min(adaptiveRadius * deviceMultiplier, maxRadius);
@@ -198,10 +223,14 @@ export const calculateEffectiveRadius = (sessionLocation, gpsAccuracy, deviceTyp
         effectiveRadius: Math.round(effectiveRadius),
         baseRadius,
         maxRadius,
+        sessionRadius,  // Include original session radius for debugging
         accuracyContribution: Math.round(accuracyContribution),
+        minimumBuffer,
         deviceMultiplier,
+        gpsAccuracyUsed: gpsAccuracyValue,
         adjustments: {
             fromAccuracy: Math.round(accuracyContribution),
+            fromBuffer: minimumBuffer,
             fromDevice: Math.round((deviceMultiplier - 1) * adaptiveRadius),
             capped: effectiveRadius >= maxRadius
         }
