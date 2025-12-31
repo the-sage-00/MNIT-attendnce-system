@@ -624,7 +624,7 @@ export const cancelSession = async (req, res) => {
  */
 export const updateSessionSettings = async (req, res) => {
     try {
-        const { securityLevel, deviceBinding, locationBinding, radius, requiredAccuracy } = req.body;
+        const { securityLevel, deviceBinding, locationBinding, radius, requiredAccuracy, centerLat, centerLng } = req.body;
 
         // First verify professor has claimed the course
         const session = await Session.findOne({
@@ -645,6 +645,8 @@ export const updateSessionSettings = async (req, res) => {
         if (locationBinding !== undefined) session.locationBinding = locationBinding;
         if (radius) session.radius = radius;
         if (requiredAccuracy) session.requiredAccuracy = requiredAccuracy;
+        if (centerLat !== undefined) session.centerLat = centerLat;
+        if (centerLng !== undefined) session.centerLng = centerLng;
         await session.save();
 
         // Update cache

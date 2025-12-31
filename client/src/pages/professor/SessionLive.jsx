@@ -25,6 +25,7 @@ const SessionLive = () => {
     const [failedAttempts, setFailedAttempts] = useState([]);
     const [isActive, setIsActive] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
     const [acceptingId, setAcceptingId] = useState(null);
     const [showAttendeesPanel, setShowAttendeesPanel] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -169,6 +170,36 @@ const SessionLive = () => {
         setIsRefreshing(false);
     };
 
+    const handleRefreshLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error('Geolocation not supported');
+            return;
+        }
+        setIsRefreshingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const res = await axios.put(`${API_URL}/sessions/${id}/settings`, {
+                        centerLat: pos.coords.latitude,
+                        centerLng: pos.coords.longitude
+                    }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setSession(res.data.data);
+                    toast.success('Location updated successfully!');
+                } catch (error) {
+                    toast.error('Failed to update location');
+                }
+                setIsRefreshingLocation(false);
+            },
+            (err) => {
+                toast.error('Failed to get location - check permissions');
+                setIsRefreshingLocation(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000 }
+        );
+    };
+
     const handleStopSession = async () => {
         if (!confirm('Stop this session? Students will no longer be able to mark attendance.')) return;
         try {
@@ -309,6 +340,18 @@ const SessionLive = () => {
                                             <span className="refresh-icon">🔄</span>
                                         )}
                                         <span>{isRefreshing ? 'Refreshing...' : 'Refresh QR'}</span>
+                                    </button>
+                                    <button
+                                        className="btn-refresh btn-location"
+                                        onClick={handleRefreshLocation}
+                                        disabled={isRefreshingLocation}
+                                    >
+                                        {isRefreshingLocation ? (
+                                            <span className="btn-spinner"></span>
+                                        ) : (
+                                            <span className="refresh-icon">📍</span>
+                                        )}
+                                        <span>{isRefreshingLocation ? 'Updating...' : 'Refresh Location'}</span>
                                     </button>
                                     <button
                                         className="btn-stop"
