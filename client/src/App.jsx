@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import InstallPrompt from './components/InstallPrompt';
 
 // Pages
 import Login from './pages/Login'; // Student Login (main page)
@@ -42,6 +43,7 @@ function App() {
             newestOnTop={true}
             theme="colored"
           />
+          <InstallPrompt />
           <Routes>
             {/* Public Login Pages */}
             <Route path="/" element={<Login />} />
