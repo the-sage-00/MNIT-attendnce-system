@@ -9,6 +9,15 @@ build/
 .next/
 out/
 
+# Internal documentation (keep only README.md and SECURITY.md)
+*_PLAN.md
+*_CHECKLIST.md
+*_IMPROVEMENTS.md
+*_GUIDE.md
+TEACH*.md
+DEPLOYMENT*.md
+REVIEW*.md
+
 # Environment variables
 .env
 .env.local
