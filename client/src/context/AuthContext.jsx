@@ -94,6 +94,15 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    /**
+     * Refresh user data from API
+     */
+    const refreshUser = async () => {
+        if (token) {
+            await fetchMe();
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -103,7 +112,8 @@ export const AuthProvider = ({ children }) => {
             loginAsProfessor,
             loginAsAdmin,
             loginWithToken,
-            logout
+            logout,
+            refreshUser
         }}>
             {children}
         </AuthContext.Provider>

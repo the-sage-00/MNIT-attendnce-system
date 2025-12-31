@@ -104,6 +104,72 @@
     margin-top: 0.25rem;
 }
 
+/* Batch Selector */
+.batch-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.batch-selector label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.batch-selector select {
+    padding: 0.4rem 0.75rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.batch-selector select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.batch-selector select.not-set {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.batch-selector select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.batch-saving {
+    font-size: 0.75rem;
+    color: var(--primary);
+}
+
+.batch-warning {
+    font-size: 0.75rem;
+    color: #f59e0b;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 /* Overall Attendance Card */
 .overall-card {
     text-align: center;

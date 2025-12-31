@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ThemeToggle from '../../components/ThemeToggle';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import API_URL from '../../config/api';
 import './StudentDashboard.css';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const StudentDashboard = () => {
-    const { user, token, logout } = useAuth();
+    const { user, token, logout, refreshUser } = useAuth();
     const navigate = useNavigate();
 
     const [summary, setSummary] = useState(null);
@@ -17,6 +18,7 @@ const StudentDashboard = () => {
     const [timetable, setTimetable] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
+    const [savingBatch, setSavingBatch] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -45,6 +47,24 @@ const StudentDashboard = () => {
         if (percentage >= 75) return 'good';
         if (percentage >= 50) return 'warning';
         return 'danger';
+    };
+
+    const handleBatchChange = async (newBatch) => {
+        if (!newBatch || savingBatch) return;
+        setSavingBatch(true);
+        try {
+            await axios.put(`${API_URL}/auth/batch`, { batch: newBatch }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(`Batch updated to ${newBatch}`);
+            if (refreshUser) await refreshUser();
+            // Refetch timetable since batch affects it
+            fetchData();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update batch');
+        } finally {
+            setSavingBatch(false);
+        }
     };
 
     const allCourses = [...(courses.autoEnrolled || []), ...(courses.electives || [])];
@@ -94,6 +114,24 @@ const StudentDashboard = () => {
                                             <p className="roll-badge">{user?.rollNo || 'Student'}</p>
                                             <p className="email">{user?.email}</p>
                                             {user?.branch && <p className="branch-info">{user.branch} | Year {user?.academicState?.year || '?'}</p>}
+
+                                            {/* Batch Selector */}
+                                            <div className="batch-selector">
+                                                <label>Batch:</label>
+                                                <select
+                                                    value={user?.batch || ''}
+                                                    onChange={(e) => handleBatchChange(e.target.value)}
+                                                    disabled={savingBatch}
+                                                    className={!user?.batch ? 'not-set' : ''}
+                                                >
+                                                    <option value="" disabled>Select Batch</option>
+                                                    {['1', '2', '3', '4', '5'].map(b => (
+                                                        <option key={b} value={b}>Batch {b}</option>
+                                                    ))}
+                                                </select>
+                                                {savingBatch && <span className="batch-saving">Saving...</span>}
+                                                {!user?.batch && <span className="batch-warning">⚠️ Set your batch!</span>}
+                                            </div>
                                         </div>
                                     </div>
 
