@@ -8,7 +8,8 @@ const GoogleLoginButton = ({
 }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [loadError, setLoadError] = useState(false);
-    const googleButtonId = useRef(`google-btn-${Date.now()}`);
+    const buttonId = useRef(`gsi-${Math.random().toString(36).substr(2, 9)}`);
+    const renderedRef = useRef(false);
 
     const handleGoogleResponse = useCallback((response) => {
         if (response.credential) {
@@ -21,18 +22,16 @@ const GoogleLoginButton = ({
     useEffect(() => {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         if (!clientId || clientId === 'your_google_client_id_here') {
-            console.warn('Google Client ID not configured.');
             setLoadError(true);
             return;
         }
 
-        let mounted = true;
+        // Prevent double render in StrictMode
+        if (renderedRef.current) return;
 
         const initializeGoogle = () => {
-            if (!mounted) return;
-
-            const container = document.getElementById(googleButtonId.current);
-            if (!container) return;
+            const container = document.getElementById(buttonId.current);
+            if (!container || renderedRef.current) return;
 
             try {
                 window.google.accounts.id.initialize({
@@ -43,7 +42,7 @@ const GoogleLoginButton = ({
                     ux_mode: 'popup'
                 });
 
-                // Clear any existing content first
+                // Clear container before rendering
                 container.innerHTML = '';
 
                 window.google.accounts.id.renderButton(container, {
@@ -51,92 +50,58 @@ const GoogleLoginButton = ({
                     size: 'large',
                     width: 280,
                     text: text,
-                    shape: 'rectangular',
+                    shape: 'pill',
                     logo_alignment: 'left'
                 });
 
-                if (mounted) {
-                    setIsLoaded(true);
-                    setLoadError(false);
-                }
+                renderedRef.current = true;
+                setIsLoaded(true);
             } catch (error) {
-                console.error('Google initialization error:', error);
-                if (mounted) {
-                    setLoadError(true);
-                }
+                console.error('Google init error:', error);
+                setLoadError(true);
             }
         };
 
+        // Load Google script
         if (window.google?.accounts?.id) {
-            initializeGoogle();
-            return;
+            setTimeout(initializeGoogle, 50);
+        } else {
+            let script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+            if (!script) {
+                script = document.createElement('script');
+                script.src = 'https://accounts.google.com/gsi/client';
+                script.async = true;
+                script.defer = true;
+                document.head.appendChild(script);
+            }
+            script.onload = () => setTimeout(initializeGoogle, 50);
+            script.onerror = () => setLoadError(true);
         }
-
-        // Check if script already exists
-        let script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-
-        if (!script) {
-            script = document.createElement('script');
-            script.src = 'https://accounts.google.com/gsi/client';
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-        }
-
-        script.addEventListener('load', initializeGoogle);
-        script.addEventListener('error', () => {
-            if (mounted) setLoadError(true);
-        });
-
-        return () => {
-            mounted = false;
-        };
     }, [handleGoogleResponse, text]);
 
     if (loadError) {
         return (
             <div className="google-login-wrapper">
-                <button
-                    className="google-button-fallback"
-                    disabled
-                    style={{
-                        padding: '12px 24px',
-                        borderRadius: '8px',
-                        background: '#333',
-                        color: '#888',
-                        border: 'none',
-                        cursor: 'not-allowed'
-                    }}
-                >
-                    Google Sign-In Unavailable
-                </button>
+                <div className="google-button-error">
+                    ⚠️ Google Sign-In Unavailable
+                </div>
             </div>
         );
     }
 
-    // KEY FIX: Separate loading indicator from Google's container
     return (
         <div className="google-login-wrapper">
-            {/* Loading state - shown until Google renders */}
             {!isLoaded && (
-                <div style={{
-                    padding: '12px 24px',
-                    background: '#4285f4',
-                    color: 'white',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    minWidth: '280px'
-                }}>
-                    Loading...
+                <div className="google-button-loading">
+                    <div className="google-spinner"></div>
+                    <span>Loading...</span>
                 </div>
             )}
-            {/* Google's container - React doesn't manage children here */}
             <div
-                id={googleButtonId.current}
+                id={buttonId.current}
                 style={{
-                    display: isLoaded ? 'block' : 'none',
-                    minHeight: '44px',
-                    minWidth: '280px'
+                    display: isLoaded ? 'flex' : 'none',
+                    justifyContent: 'center'
                 }}
             />
         </div>

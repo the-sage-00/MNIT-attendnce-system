@@ -5,7 +5,7 @@ import GoogleLoginButton from '../components/GoogleLoginButton';
 import './Login.css';
 
 /**
- * Student Login Page (Main page at /)
+ * Student Login Page
  * Only MNIT emails allowed
  */
 const Login = () => {
@@ -33,13 +33,30 @@ const Login = () => {
     };
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <div className="login-icon">🎓</div>
-                <h1>Student Portal</h1>
-                <p>MNIT QR Attendance System</p>
+        <div className="auth-page student-auth">
+            <div className="auth-card">
+                {/* Icon */}
+                <div className="auth-icon">🎓</div>
 
-                <div className="login-actions">
+                {/* Title */}
+                <h1 className="auth-title">Student Portal</h1>
+                <p className="auth-subtitle">QR Attendance System</p>
+
+                {/* Instructions */}
+                <div className="auth-instructions">
+                    <div className="instruction-header">
+                        <span className="instruction-icon">📋</span>
+                        <span>How to Login</span>
+                    </div>
+                    <ul className="instruction-list">
+                        <li>Use your official MNIT email (@mnit.ac.in)</li>
+                        <li>Click Google button to sign in</li>
+                        <li>Allow location for attendance</li>
+                    </ul>
+                </div>
+
+                {/* Google Login */}
+                <div className="auth-button-wrapper">
                     <GoogleLoginButton
                         onSuccess={handleGoogleSuccess}
                         onError={(err) => console.error(err)}
@@ -47,11 +64,12 @@ const Login = () => {
                     />
                 </div>
 
-                <div className="login-footer">
-                    <p>Use your @mnit.ac.in email</p>
-                    <div className="login-links">
-                        <Link to="/professor/login">Professor Login →</Link>
-                    </div>
+                {/* Footer */}
+                <div className="auth-footer">
+                    <p className="auth-note">Only @mnit.ac.in emails accepted</p>
+                    <Link to="/professor/login" className="auth-link">
+                        👨‍🏫 Professor Login
+                    </Link>
                 </div>
             </div>
         </div>
