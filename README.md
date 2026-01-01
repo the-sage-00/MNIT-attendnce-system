@@ -357,11 +357,11 @@ Students are **auto-enrolled** based on email parsing:
 Email: 2024ucp1566@mnit.ac.in
          │   │  │
          │   │  └── Roll Number: 1566
-         │   └───── Branch: UCS (Computer Science)
+         │   └───── Branch: ucp (Computer Science)
          └───────── Admission Year: 2024
 
 → Auto-calculate: 1st Year, 1st Semester
-→ Auto-enroll in: All UCS Year-1 courses
+→ Auto-enroll in: All ucp Year-1 courses
 ```
 
 ---
@@ -389,7 +389,7 @@ The system has **three user roles** with distinct workflows. Below are detailed 
 2. Select MNIT email (e.g., 2024ucp1566@mnit.ac.in)
 3. System extracts:
    ├── Admission Year: 2024
-   ├── Branch: UCS
+   ├── Branch: ucp
    └── Roll Number: 1566
 4. Redirected to Student Dashboard
 ```
@@ -402,7 +402,7 @@ The system has **three user roles** with distinct workflows. Below are detailed 
 
 ```
 Dashboard shows courses matched by:
-├── Student's Branch (e.g., UCS)
+├── Student's Branch (e.g., ucp)
 └── Student's Current Year (calculated from admission year)
 
 Additional options:
