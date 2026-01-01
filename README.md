@@ -12,7 +12,7 @@
 
 ---
 
-### 🌐 **[Live Demo](https://checkatte.vercel.app/)** | 🎬 **[Watch Demo Video](https://youtu.be/YOUR_VIDEO_ID)**
+### 🌐 **[Live Demo](https://checkatte.vercel.app/)** | 🎬 **[Watch Demo Video](https://youtu.be/xYmjg0JIayQ)**
 
 ---
 
@@ -22,9 +22,64 @@
 
 ## 🚀 Quick Start for Evaluators
 
-> **For hackathon judges/evaluators**: This section helps you quickly test the entire system.
+> **⏱️ Time to test: ~5 minutes** | Follow these steps to see the complete system in action
 
-### 📋 System Overview
+---
+
+### 🔑 STEP 1: Login as Admin (Pre-configured)
+
+| 🌐 URL | 📧 Email | 🔒 Password |
+|--------|----------|-------------|
+| **[checkatte.vercel.app](https://checkatte.vercel.app/)** | `admin@classcheck.com` | `Admin@123` |
+
+1. Open the link above
+2. Click **"Admin Login"** button
+3. Enter credentials from the table
+4. ✅ You're now in the Admin Dashboard!
+
+**What Admin Can Do:**
+- 📚 Add/manage courses
+- 👨‍🏫 Approve professor registrations  
+- 👨‍🎓 View all students
+- 📊 See system-wide analytics
+
+---
+
+### 🔑 STEP 2: Create a Professor Account
+
+1. Go back to **[checkatte.vercel.app](https://checkatte.vercel.app/)**
+2. Click **"Professor Login"** → **"Sign Up"**
+3. Use **any email** (e.g., `professor@gmail.com`, `test@example.com`)
+4. **Important**: Go back to Admin Dashboard → Approvals → Approve the professor
+5. ✅ Now login as the professor!
+
+**What Professor Can Do:**
+- 🎯 Claim courses to teach
+- 📷 Start live QR sessions
+- 📍 Set GPS radius & QR rotation time
+- 📊 View attendance reports & export CSV
+
+---
+
+### 🔑 STEP 3: Create a Student Account
+
+1. Go to **[checkatte.vercel.app](https://checkatte.vercel.app/)**
+2. Click **"Student Login"** → **"Sign Up"**
+3. Use email format: `2024ucp1234@mnit.ac.in`
+   - `2024` = admission year
+   - `ucp` = branch code (ucp, uce, uec, uee, ume, umt, uch)
+   - `1234` = roll number
+4. ✅ Student auto-enrolls in courses based on branch!
+
+**What Student Can Do:**
+- 📷 Scan QR to mark attendance
+- 📊 View attendance percentage per course
+- 📅 See timetable
+- 🔔 Get low attendance warnings
+
+---
+
+### 🎬 TESTING THE FULL FLOW
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -53,17 +108,7 @@
 | **Professor** | Sign up with any email 
 | **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`)
 
-### � Important: Use Mobile Phone for Session Creation
-
-> ⚠️ **For Professors/Evaluators**: When starting an attendance session, please use a **mobile phone** instead of a laptop/PC.
-> 
-> **Why?** Laptops and PCs don't have GPS hardware—they use IP-based geolocation which is often **±1-10 kilometers** inaccurate. This causes students to fail location verification even when they're in the classroom.
->
-> **Mobile phones have real GPS** hardware that provides accurate location (±5-50 meters), ensuring proper geo-fencing for attendance.
->
-> *The app includes fallback options: GPS accuracy warnings and manual coordinate entry for desktop users.*
-
-### �📖 Step-by-Step Usage Guide
+### 📖 Step-by-Step Usage Guide
 
 #### Step 1️⃣: Admin Setup (Required First)
 
@@ -83,9 +128,7 @@
    - Select course, set duration (10-180 mins)
    - Set GPS radius (20-500m) and QR rotation (15s-2min)
    - Allow location access → QR code appears
-
-   > ⚠️ **IMPORTANT FOR EVALUATORS**: Use a **mobile phone** to start sessions! Laptops/PCs use IP-based geolocation which is inaccurate (often ±1-10km off). Mobile phones have real GPS hardware for precise location. The app will warn you if GPS accuracy is poor and allows manual coordinate entry as a fallback.
-
+       (> Note: Laptops often show inaccurate locations or cache old data. If the location is wrong, try generating the QR code from a mobile phone instead.)
 5. **Monitor Attendance**: View real-time student check-ins
 6. **Stop Session**: Click "Stop Session" when done
 
@@ -115,42 +158,33 @@ When a student scans the QR code, these checks happen automatically:
 ### 📁 Project Structure
 
 ```
-├── client/                 # React Frontend (Vite)
-│   ├── src/
-│   │   ├── pages/          # Role-based pages
-│   │   │   ├── admin/      # Admin dashboard, courses, users
-│   │   │   ├── professor/  # Professor dashboard, sessions
-│   │   │   └── student/    # Student dashboard, attendance
-│   │   ├── components/     # Reusable UI components
-│   │   └── context/        # Auth context
-│   └── public/             # Static assets, PWA icons
+📦 QR-Attendance-System
+├── 📂 client/                    # React Frontend (Vite)
+│   ├── 📂 src/pages/
+│   │   ├── 📂 admin/            # Admin dashboard
+│   │   ├── 📂 professor/        # Professor dashboard + live session
+│   │   └── 📂 student/          # Student dashboard + QR scanner
+│   └── 📂 public/               # PWA icons & manifest
 │
-├── server/                 # Node.js Backend (Express)
-│   ├── controllers/        # Route handlers
-│   │   ├── authController.js
-│   │   ├── sessionController.js
-│   │   ├── attendanceController.js
-│   │   └── courseController.js
-│   ├── models/             # MongoDB schemas
-│   ├── middleware/         # Auth, rate limiting
-│   ├── routes/             # API routes
-│   ├── utils/              # Helpers (identity parser, etc.)
-│   └── config/             # Redis, database config
+├── 📂 server/                    # Node.js Backend (Express)
+│   ├── 📂 controllers/          # Business logic
+│   ├── 📂 models/               # MongoDB schemas
+│   ├── 📂 routes/               # API endpoints
+│   └── 📂 utils/                # Helpers (geolocation, identity)
 │
-├── readme/                 # README images
-└── README.md               # This file
+└── 📄 README.md                  # You are here!
 ```
 
 ### 🔧 Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React 18, Vite, CSS3 |
-| Backend | Node.js, Express.js |
-| Database | MongoDB Atlas |
-| Cache | Redis (Upstash) |
-| Hosting | Vercel (Frontend), Render (Backend) |
-| Auth | JWT + Google OAuth |
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, PWA |
+| **Backend** | Node.js, Express.js |
+| **Database** | MongoDB Atlas |
+| **Cache** | Redis (Upstash) |
+| **Hosting** | Vercel + Render |
+| **Auth** | JWT + Google OAuth |
 
 ---
 
@@ -350,11 +384,11 @@ Students are **auto-enrolled** based on email parsing:
 Email: 2024ucp1566@mnit.ac.in
          │   │  │
          │   │  └── Roll Number: 1566
-         │   └───── Branch: UCS (Computer Science)
+         │   └───── Branch: ucp (Computer Science)
          └───────── Admission Year: 2024
 
 → Auto-calculate: 1st Year, 1st Semester
-→ Auto-enroll in: All UCS Year-1 courses
+→ Auto-enroll in: All ucp Year-1 courses
 ```
 
 ---
@@ -382,7 +416,7 @@ The system has **three user roles** with distinct workflows. Below are detailed 
 2. Select MNIT email (e.g., 2024ucp1566@mnit.ac.in)
 3. System extracts:
    ├── Admission Year: 2024
-   ├── Branch: UCS
+   ├── Branch: ucp
    └── Roll Number: 1566
 4. Redirected to Student Dashboard
 ```
@@ -395,7 +429,7 @@ The system has **three user roles** with distinct workflows. Below are detailed 
 
 ```
 Dashboard shows courses matched by:
-├── Student's Branch (e.g., UCS)
+├── Student's Branch (e.g., ucp)
 └── Student's Current Year (calculated from admission year)
 
 Additional options:
@@ -526,15 +560,15 @@ Devices auto-register on first use.
 │      │   (Rotates every    │            │
 │      │    2 minutes)       │            │
 │      └─────────────────────┘            │
-│                                          │
-│  ⏱️ Time Remaining: 45:23                │
-│  👥 Attendance: 45/60 students           │
-│                                          │
-│  Recent:                                 │
+│                                         │
+│  ⏱️ Time Remaining: 45:23               │
+│  👥 Attendance: 45/60 students          │
+│                                         │
+│  Recent:                                │
 │  • Rahul - PRESENT - 2 sec ago          │
 │  • Priya - LATE - 30 sec ago            │
-│                                          │
-│  [🔄 Refresh QR]  [⏹️ Stop Session]       │
+│                                         │
+│  [🔄 Refresh QR]  [⏹️ Stop Session]    │
 └─────────────────────────────────────────┘
 ```
 
@@ -577,18 +611,18 @@ Devices auto-register on first use.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    🛡️ ADMIN DASHBOARD                        │
+│                    🛡️ ADMIN DASHBOARD                       │
 ├─────────────────────────────────────────────────────────────┤
-│  📊 Statistics                                               │
+│  📊 Statistics                                              │
 │  ├── Students: 1,250  │  Professors: 45                     │
 │  ├── Courses: 120     │  Active Sessions: 15                │
-│                                                              │
-│  ⚠️ Pending Actions                                          │
+│                                                             │
+│  ⚠️ Pending Actions                                         │
 │  ├── Professor Approvals: 3                                  │
 │  ├── Course Claims: 5                                        │
-│  └── Elective Requests: 8                                    │
-│                                                              │
-│  🚨 Security Alerts                                          │
+│  └── Elective Requests: 8                                   │
+│                                                             │
+│  🚨 Security Alerts                                         │
 │  ├── Device blocked: student123 (2 min ago)                 │
 │  └── GPS spoof detected: student456 (1 hr ago)              │
 └─────────────────────────────────────────────────────────────┘
