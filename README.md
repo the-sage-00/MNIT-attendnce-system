@@ -50,8 +50,8 @@
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@classcheck.com` | `Admin@123` |
-| **Professor** | Sign up with any `@mnit.ac.in` email | Your chosen password |
-| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`) | Your chosen password |
+| **Professor** | Sign up with any email 
+| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`)
 
 ### 📖 Step-by-Step Usage Guide
 
@@ -73,6 +73,7 @@
    - Select course, set duration (10-180 mins)
    - Set GPS radius (20-500m) and QR rotation (15s-2min)
    - Allow location access → QR code appears
+       (> Note: Laptops often show inaccurate locations or cache old data. If the location is wrong, try generating the QR code from a mobile phone instead.)
 5. **Monitor Attendance**: View real-time student check-ins
 6. **Stop Session**: Click "Stop Session" when done
 
