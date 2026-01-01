@@ -287,7 +287,7 @@ const StudentDashboard = () => {
                         )}
 
                         {/* Tab Navigation */}
-                        <div className="tab-nav">
+                        <div id="tab-section" className="tab-nav">
                             <button
                                 className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('overview')}
@@ -599,7 +599,7 @@ const StudentDashboard = () => {
                 <a
                     href="#"
                     className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-                    onClick={(e) => { e.preventDefault(); setActiveTab('overview'); window.scrollTo(0, 0); }}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('overview'); document.getElementById('tab-section')?.scrollIntoView({ behavior: 'smooth' }); }}
                 >
                     <span className="nav-icon">🏠</span>
                     <span className="nav-label">Home</span>
@@ -607,7 +607,7 @@ const StudentDashboard = () => {
                 <a
                     href="#"
                     className={`nav-item ${activeTab === 'timetable' ? 'active' : ''}`}
-                    onClick={(e) => { e.preventDefault(); setActiveTab('timetable'); window.scrollTo(0, 0); }}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('timetable'); document.getElementById('tab-section')?.scrollIntoView({ behavior: 'smooth' }); }}
                 >
                     <span className="nav-icon">📅</span>
                     <span className="nav-label">Timetable</span>
@@ -621,7 +621,7 @@ const StudentDashboard = () => {
                 <a
                     href="#"
                     className={`nav-item ${activeTab === 'courses' ? 'active' : ''}`}
-                    onClick={(e) => { e.preventDefault(); setActiveTab('courses'); window.scrollTo(0, 0); }}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('courses'); document.getElementById('tab-section')?.scrollIntoView({ behavior: 'smooth' }); }}
                 >
                     <span className="nav-icon">📚</span>
                     <span className="nav-label">Courses</span>
