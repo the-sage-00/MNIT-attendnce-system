@@ -53,7 +53,17 @@
 | **Professor** | Sign up with any email 
 | **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`)
 
-### 📖 Step-by-Step Usage Guide
+### � Important: Use Mobile Phone for Session Creation
+
+> ⚠️ **For Professors/Evaluators**: When starting an attendance session, please use a **mobile phone** instead of a laptop/PC.
+> 
+> **Why?** Laptops and PCs don't have GPS hardware—they use IP-based geolocation which is often **±1-10 kilometers** inaccurate. This causes students to fail location verification even when they're in the classroom.
+>
+> **Mobile phones have real GPS** hardware that provides accurate location (±5-50 meters), ensuring proper geo-fencing for attendance.
+>
+> *The app includes fallback options: GPS accuracy warnings and manual coordinate entry for desktop users.*
+
+### �📖 Step-by-Step Usage Guide
 
 #### Step 1️⃣: Admin Setup (Required First)
 
@@ -73,7 +83,9 @@
    - Select course, set duration (10-180 mins)
    - Set GPS radius (20-500m) and QR rotation (15s-2min)
    - Allow location access → QR code appears
-       (> Note: Laptops often show inaccurate locations or cache old data. If the location is wrong, try generating the QR code from a mobile phone instead.)
+
+   > ⚠️ **IMPORTANT FOR EVALUATORS**: Use a **mobile phone** to start sessions! Laptops/PCs use IP-based geolocation which is inaccurate (often ±1-10km off). Mobile phones have real GPS hardware for precise location. The app will warn you if GPS accuracy is poor and allows manual coordinate entry as a fallback.
+
 5. **Monitor Attendance**: View real-time student check-ins
 6. **Stop Session**: Click "Stop Session" when done
 

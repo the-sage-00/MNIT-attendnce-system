@@ -296,34 +296,52 @@ Professors can choose session security level:
 
 ## Deployment Requirements
 
-### Required
+### Our Production Stack
 
-- **Node.js** >= 16
+| Component | Service | Purpose |
+|-----------|---------|--------|
+| **Frontend** | Vercel | React app hosting with CDN |
+| **Backend** | Render | Node.js/Express API server |
+| **Database** | MongoDB Atlas | Cloud-hosted MongoDB |
+| **Cache** | Upstash Redis | Serverless Redis for session caching |
+| **Auth** | Google OAuth + JWT | Secure authentication |
+
+### Required Technologies
+
+- **Node.js** >= 18
 - **MongoDB** >= 5.0
 - **Redis** >= 6.0 (for full security features)
 
-### Redis Installation
+### Redis Setup (Upstash)
 
-**Local (Development):**
+We use **Upstash Redis** for serverless, globally distributed caching:
+
+**Setup:**
+1. Create free account at [upstash.com](https://upstash.com)
+2. Create a new Redis database
+3. Copy the connection URL to your environment variables
+
+**Local Development:**
 ```bash
-# Windows (using WSL or Docker)
-docker run -d --name redis -p 6379:6379 redis:alpine
-
-# Linux
-sudo apt install redis-server
+# No local Redis needed - use Upstash free tier for development
+# Or install Redis locally:
+# Linux: sudo apt install redis-server
+# macOS: brew install redis
+# Windows: Use WSL2 with Linux instructions
 ```
-
-**Production:**
-- Use Redis Cloud, AWS ElastiCache, or similar managed service
-- Enable persistence and authentication
 
 ### Environment Variables
 
 ```env
-# Critical for security
+# Authentication
 JWT_SECRET=minimum-32-character-secret-key
-REDIS_HOST=your-redis-host
-REDIS_PASSWORD=your-redis-password
+GOOGLE_CLIENT_ID=your-google-client-id
+
+# Database
+MONGODB_URI=mongodb+srv://...
+
+# Redis (Upstash)
+REDIS_URL=redis://default:password@host:port
 
 # Security tuning
 QR_ROTATION_INTERVAL=30000
@@ -396,7 +414,8 @@ The goal is to make cheating:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 4.0.0 | 2024-12 | Complete security overhaul |
+| 5.0.0 | 2025-01 | Cloud deployment (Vercel + Render + Upstash), documentation update |
+| 4.0.0 | 2024-12 | Complete security overhaul, 7-layer validation |
 | 3.0.0 | 2024-12 | Basic QR rotation |
 | 2.0.0 | 2024-11 | Device fingerprinting |
 | 1.0.0 | 2024-10 | Initial release |
