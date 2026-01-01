@@ -5,6 +5,7 @@ import connectDB from './config/db.js';
 import config from './config/index.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import keepAlive from './utils/keepalive.js';
 
 // Load environment variables
 dotenv.config();
@@ -81,6 +82,12 @@ app.use('/api/attendance', attendanceRoutes);
 
 // ============================================
 // UTILITY ROUTES
+// ============================================
+
+// Ping endpoint for keep-alive system
+app.get('/ping', (req, res) => {
+    res.status(200).send('pong');
+});
 // ============================================
 
 // Health check endpoint
@@ -213,6 +220,9 @@ app.listen(PORT, '0.0.0.0', () => {
 ║  API:    http://localhost:${PORT}/api                 ║
 ╚═══════════════════════════════════════════════════╝
     `);
+
+    // Start keep-alive pings AFTER server is running
+    keepAlive();
 });
 
 export default app;
