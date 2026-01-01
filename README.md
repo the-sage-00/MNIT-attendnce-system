@@ -49,7 +49,7 @@
 
 1. Go back to **[checkatte.vercel.app](https://checkatte.vercel.app/)**
 2. Click **"Professor Login"** → **"Sign Up"**
-3. Use any email with `@mnit.ac.in` domain (e.g., `test.professor@mnit.ac.in`)
+3. Use **any email** (e.g., `professor@gmail.com`, `test@example.com`)
 4. **Important**: Go back to Admin Dashboard → Approvals → Approve the professor
 5. ✅ Now login as the professor!
 
