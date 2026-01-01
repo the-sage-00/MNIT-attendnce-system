@@ -118,13 +118,13 @@
 
 | # | Security Check | What Happens | Fraud Blocked |
 |---|----------------|--------------|---------------|
-| 1 | **QR Token** | HMAC signature verified | ❌ Screenshot sharing |
-| 2 | **QR Expiry** | Token expires every 30s | ❌ Old QR reuse |
-| 3 | **GPS Location** | Within 150m of professor | ❌ Hostel marking |
-| 4 | **Device ID** | Unique fingerprint per phone | ❌ Phone sharing |
-| 5 | **One Device** | 1 phone per student | ❌ Multiple devices |
-| 6 | **Session Active** | Session must be live | ❌ Late marking |
-| 7 | **Course Match** | Student enrolled in course | ❌ Wrong class |
+| 1 | **QR Expiry** | Token expires every 30s | ❌ Old QR reuse |
+| 2 | **GPS Location** | Within 150m of professor | ❌ Hostel marking |
+| 3 | **Device ID** | Unique fingerprint per phone | ❌ Phone sharing |
+| 4 | **One Device** | 1 phone per student | ❌ Multiple devices |
+| 5 | **Session Active** | Session must be live | ❌ Late marking |
+| 6 | **Course Match** | Student enrolled in course | ❌ Wrong class |
+| 7 | **QR Token** | HMAC signature verified | ❌ Screenshot sharing |
 
 ---
 
