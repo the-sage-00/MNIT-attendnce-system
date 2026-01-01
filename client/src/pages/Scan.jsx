@@ -27,7 +27,7 @@ const Scan = () => {
     useEffect(() => {
         return () => {
             if (scannerRef.current) {
-                scannerRef.current.stop().catch(console.error);
+                scannerRef.current.stop().catch(() => { });
             }
         };
     }, []);
@@ -71,8 +71,6 @@ const Scan = () => {
             await scanner.stop();
             scannerRef.current = null;
             setScanStatus('Processing QR code...');
-
-            console.log('Scanned Data:', data);
 
             let sessionId, token, nonce, timestamp;
 
@@ -148,7 +146,7 @@ const Scan = () => {
                 setScanning(false);
             }
         } catch (err) {
-            console.error('QR Parse Error:', err);
+            // QR parse error - handled by UI
             setError('Failed to process QR code. Please try again.');
             setScanning(false);
         }
@@ -156,7 +154,7 @@ const Scan = () => {
 
     const stopScanner = async () => {
         if (scannerRef.current) {
-            await scannerRef.current.stop().catch(console.error);
+            await scannerRef.current.stop().catch(() => { });
             scannerRef.current = null;
         }
         setScanning(false);

@@ -31,7 +31,6 @@ const ProfessorLogin = () => {
                 navigate('/professor/dashboard');
             }
         } catch (error) {
-            console.error('Login Failed', error);
             alert(error.response?.data?.error || 'Login failed.');
         }
     };
@@ -63,7 +62,7 @@ const ProfessorLogin = () => {
                 <div className="auth-button-wrapper">
                     <GoogleLoginButton
                         onSuccess={handleGoogleSuccess}
-                        onError={(err) => console.error(err)}
+                        onError={() => { }}
                         text="signin_with"
                     />
                 </div>

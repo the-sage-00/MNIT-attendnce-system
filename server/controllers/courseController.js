@@ -404,6 +404,7 @@ export const getStudentTimetable = async (req, res) => {
             isArchived: false,
             $or: [
                 { batch: 'all' },
+                { batch: { $exists: false } },  // Courses without batch field
                 { batch: studentBatch }
             ],
             schedules: { $exists: true, $ne: [] }

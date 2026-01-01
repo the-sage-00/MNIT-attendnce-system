@@ -110,33 +110,43 @@ export const calculateAcademicState = (admissionYear) => {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0-11
 
-    // Year calculation based on admission year
-    // If current year is 2025 (Dec 2024):
-    // 2024 admission → Year 2 (as per user: "2024 for 2nd year")
-    // 2025 admission → Year 1
-    // 2023 admission → Year 3
-    // 2022 admission → Year 4
+    // Academic year calculation:
+    // - Academic year starts in July/August
+    // - A student admitted in year X is in Year 1 from Aug-X to Jul-(X+1)
+    // - They move to Year 2 in Aug-(X+1) and so on
+    //
+    // Example (for student admitted in 2024):
+    // - Aug 2024 to Jul 2025: Year 1
+    // - Aug 2025 to Jul 2026: Year 2
+    // - Aug 2026 to Jul 2027: Year 3
+    // - Aug 2027 to Jul 2028: Year 4
+    //
+    // So in January 2026 (currentMonth=0, currentYear=2026):
+    // - 2024 admission → Year 2 (since we're between Aug 2025 and Jul 2026)
+    // - 2025 admission → Year 1 (since we're between Aug 2025 and Jul 2026)
+    // - 2023 admission → Year 3
+    // - 2022 admission → Year 4
 
-    // For Dec 2024, we're in the odd semester of the academic year
-    // So 2024 admits are in Year 1 still (1st sem ends in Dec)
-    // But user said 2024 = 2nd year, so let's adjust
+    let yearOfStudy;
 
-    // Actually the user's logic: in Dec 2024
-    // 2025 = 1st year, 2024 = 2nd year, 2023 = 3rd, 2022 = 4th
-    // This means: year = currentYear - admissionYear + 1
-    // For 2024: 2024 - 2024 + 1 = 1... but user says 2nd year
-
-    // Wait - in Dec 2024, looking at Jan 2025:
-    // 2024 admits are completing 1st year, entering 2nd
-    // So for projection into next semester, add 1
-
-    let yearOfStudy = currentYear - admissionYear + 1;
+    if (currentMonth >= 7) {
+        // Aug-Dec: New academic year has started
+        // yearOfStudy = currentYear - admissionYear + 1
+        yearOfStudy = currentYear - admissionYear + 1;
+    } else {
+        // Jan-Jul: Still in the previous academic year's session
+        // yearOfStudy = currentYear - admissionYear
+        // (because the academic year that started in Aug of previous year is still ongoing)
+        yearOfStudy = currentYear - admissionYear;
+    }
 
     // Ensure valid year (1-4)
     if (yearOfStudy < 1) yearOfStudy = 1;
     if (yearOfStudy > 4) yearOfStudy = 4;
 
-    // Semester: odd semesters in Aug-Dec (Jul-Nov), even in Jan-Jul (Dec-Jun)
+    // Semester calculation:
+    // - Odd semesters (1,3,5,7) run from Aug-Dec
+    // - Even semesters (2,4,6,8) run from Jan-Jul (approx)
     let semester;
     if (currentMonth >= 7) { // Aug-Dec
         semester = (yearOfStudy * 2) - 1; // Odd: 1,3,5,7

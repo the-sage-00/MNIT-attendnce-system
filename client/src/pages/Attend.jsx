@@ -77,9 +77,7 @@ const Attend = () => {
             setStatusMsg(errMsg);
 
             // Show eligibility details if available
-            if (error.response?.data?.details) {
-                console.log('Eligibility check failed:', error.response.data.details);
-            }
+            // Details are handled server-side
         }
     };
 
@@ -141,7 +139,6 @@ const Attend = () => {
                     }
                 },
                 (error) => {
-                    console.warn('Sample collection warning:', error);
                     // Don't fail on individual sample errors, continue collecting
                 },
                 {
@@ -332,8 +329,6 @@ const Attend = () => {
                 browser: getBrowserName(),
                 os: getOSName()
             };
-
-            console.log('V5: Submitting attendance with', location.samples?.length || 0, 'location samples');
 
             const response = await axios.post(`${API_URL}/attendance/mark`, payload, {
                 headers: { Authorization: `Bearer ${token}` }

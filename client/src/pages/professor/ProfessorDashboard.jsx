@@ -113,7 +113,7 @@ const ProfessorDashboard = () => {
             setPastSessions(sessionsRes.data.data || []);
             await fetchClaimableCourses();
         } catch (error) {
-            console.error('Fetch error:', error);
+            // Error handled silently
         } finally {
             setLoading(false);
         }
@@ -129,7 +129,7 @@ const ProfessorDashboard = () => {
             const res = await axios.get(`${API_URL}/courses/claimable?${params}`, { headers });
             setClaimableCourses(res.data.data || []);
         } catch (error) {
-            console.error('Fetch claimable error:', error);
+            // Error handled silently
         }
     };
 

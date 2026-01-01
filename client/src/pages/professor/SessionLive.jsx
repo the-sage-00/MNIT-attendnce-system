@@ -77,7 +77,6 @@ const SessionLive = () => {
             setIsActive(res.data.data.isActive);
             setLoading(false);
         } catch (error) {
-            console.error('Session fetch error:', error);
             toast.error('Failed to load session');
             setLoading(false);
         }
@@ -94,7 +93,6 @@ const SessionLive = () => {
             setQrExpiry(new Date(res.data.data.expiresAt).getTime());
             setCountdown(Math.floor(res.data.data.remainingMs / 1000));
         } catch (error) {
-            console.error('QR Fetch Error', error);
             if (error.response?.data?.error === 'Session has ended') {
                 setIsActive(false);
             }
@@ -119,7 +117,7 @@ const SessionLive = () => {
                 totalCount: data.length
             });
         } catch (error) {
-            console.error('Stats fetch error:', error);
+            // Silent fail for stats polling
         }
     };
 
@@ -130,7 +128,7 @@ const SessionLive = () => {
             });
             setFailedAttempts(res.data.data?.filter(a => a.status === 'PENDING') || []);
         } catch (error) {
-            console.error('Failed attempts fetch error:', error);
+            // Silent fail for polling
         }
     };
 
@@ -164,7 +162,6 @@ const SessionLive = () => {
             setCountdown(30);
             toast.success('QR code refreshed!');
         } catch (error) {
-            console.error('Force refresh error:', error);
             toast.error('Failed to refresh QR');
         }
         setIsRefreshing(false);

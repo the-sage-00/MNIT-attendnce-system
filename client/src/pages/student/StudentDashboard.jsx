@@ -41,7 +41,7 @@ const StudentDashboard = () => {
             setCourses(coursesRes.data.data || { autoEnrolled: [], electives: [] });
             setTimetable(timetableRes.data.data);
         } catch (error) {
-            console.error('Fetch error:', error);
+            // Error handled silently - UI shows empty state
         } finally {
             setLoading(false);
         }
