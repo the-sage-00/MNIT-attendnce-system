@@ -1082,7 +1082,7 @@ export const exportCourseAttendance = async (req, res) => {
             const percentage = sessions.length > 0
                 ? Math.round((total / sessions.length) * 100)
                 : 0;
-            row += `,${total}/${sessions.length},${percentage}%\n`;
+            row += `,"${total} of ${sessions.length}",${percentage}%\n`;
             csv += row;
         });
 
