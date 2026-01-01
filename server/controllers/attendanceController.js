@@ -1017,7 +1017,7 @@ export const exportCourseAttendance = async (req, res) => {
             return res.status(404).json({ success: false, error: 'Course not found' });
         }
 
-        if (course.professor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        if (!course.claimedBy?.some(id => id.toString() === req.user._id.toString()) && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, error: 'Not authorized' });
         }
 
