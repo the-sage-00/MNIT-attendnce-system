@@ -596,36 +596,36 @@ const StudentDashboard = () => {
 
             {/* Bottom Navigation */}
             <nav className="bottom-nav">
-                <Link
-                    to="/student/dashboard"
+                <a
+                    href="#"
                     className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('overview')}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('overview'); window.scrollTo(0, 0); }}
                 >
                     <span className="nav-icon">🏠</span>
                     <span className="nav-label">Home</span>
-                </Link>
-                <Link
-                    to="/student/dashboard"
+                </a>
+                <a
+                    href="#"
                     className={`nav-item ${activeTab === 'timetable' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('timetable')}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('timetable'); window.scrollTo(0, 0); }}
                 >
                     <span className="nav-icon">📅</span>
                     <span className="nav-label">Timetable</span>
-                </Link>
+                </a>
                 <Link to="/student/scan-qr" className="nav-item scan-btn">
                     <span className="scan-icon-wrapper">
                         <span className="nav-icon">📷</span>
                     </span>
                     <span className="nav-label">Scan</span>
                 </Link>
-                <Link
-                    to="/student/dashboard"
+                <a
+                    href="#"
                     className={`nav-item ${activeTab === 'courses' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('courses')}
+                    onClick={(e) => { e.preventDefault(); setActiveTab('courses'); window.scrollTo(0, 0); }}
                 >
                     <span className="nav-icon">📚</span>
                     <span className="nav-label">Courses</span>
-                </Link>
+                </a>
                 <Link to="/student/profile" className="nav-item">
                     <span className="nav-icon">👤</span>
                     <span className="nav-label">Profile</span>
