@@ -185,5 +185,59 @@ router.delete('/debug/clear-attendance/:studentId/:sessionId', async (req, res) 
     }
 });
 
-export default router;
+// ============================================
+// FIX: Drop stale indexes from old schema versions
+// This fixes the duplicate key error on:
+// course_1_student_1_date_1_scheduleSlot.startTime_1
+// ============================================
+router.post('/fix-stale-indexes', async (req, res) => {
+    try {
+        const collection = Attendance.collection;
 
+        // Get all indexes
+        const indexes = await collection.indexes();
+        console.log('Current indexes:', indexes.map(i => i.name));
+
+        // List of old/stale indexes to drop
+        const staleIndexNames = [
+            'course_1_student_1_date_1_scheduleSlot.startTime_1',
+            'course_1_student_1_date_1',
+            'scheduleSlot.startTime_1'
+        ];
+
+        const droppedIndexes = [];
+        const errors = [];
+
+        for (const indexName of staleIndexNames) {
+            try {
+                // Check if index exists
+                const exists = indexes.some(i => i.name === indexName);
+                if (exists) {
+                    await collection.dropIndex(indexName);
+                    droppedIndexes.push(indexName);
+                    console.log(`✅ Dropped stale index: ${indexName}`);
+                }
+            } catch (err) {
+                if (!err.message.includes('index not found')) {
+                    errors.push({ index: indexName, error: err.message });
+                }
+            }
+        }
+
+        // Get updated indexes
+        const updatedIndexes = await collection.indexes();
+
+        res.json({
+            success: true,
+            message: `Dropped ${droppedIndexes.length} stale indexes`,
+            droppedIndexes,
+            errors: errors.length > 0 ? errors : undefined,
+            currentIndexes: updatedIndexes.map(i => ({ name: i.name, key: i.key }))
+        });
+    } catch (error) {
+        console.error('Fix Indexes Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+export default router;

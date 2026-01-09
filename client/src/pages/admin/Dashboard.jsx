@@ -175,6 +175,22 @@ const AdminDashboard = () => {
         }
     };
 
+    // Fix stale MongoDB indexes (for fixing duplicate key errors)
+    const handleFixStaleIndexes = async () => {
+        if (!confirm('🔧 Fix stale MongoDB indexes?\n\nThis will drop old indexes that cause duplicate key errors.\nThis is safe and recommended if you see "E11000 duplicate key" errors.')) {
+            return;
+        }
+        try {
+            const res = await axios.post(`${API_URL}/admin/fix-stale-indexes`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(res.data.message || 'Stale indexes fixed!');
+            console.log('Index fix result:', res.data);
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to fix indexes');
+        }
+    };
+
     // Calculate pending totals
     const totalPending = pendingProfessors.length + claimRequests.length + electiveRequests.length + pendingUsers.length;
 
@@ -696,6 +712,19 @@ const AdminDashboard = () => {
                                         <div className="manage-info">
                                             <h3>Clear Redis Cache</h3>
                                             <p>Fix "already marked" errors. Clears stale attendance cache.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div
+                                        className="manage-card danger"
+                                        onClick={handleFixStaleIndexes}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className="manage-icon">🔧</div>
+                                        <div className="manage-info">
+                                            <h3>Fix Database Indexes</h3>
+                                            <p>Fix "duplicate key" errors. Drop stale MongoDB indexes.</p>
                                         </div>
                                         <span className="manage-arrow">→</span>
                                     </div>
