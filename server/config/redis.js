@@ -202,6 +202,44 @@ class RedisService {
     }
 
     /**
+     * Clear a specific attendance mark (for fixing stale entries)
+     */
+    async clearAttendanceMark(sessionId, studentId) {
+        try {
+            if (!isConnected) return false;
+            const key = REDIS_KEYS.ATTENDANCE_MARKED + `${sessionId}:${studentId}`;
+            await this.client.del(key);
+            console.log(`🧹 Cleared Redis attendance mark: ${key}`);
+            return true;
+        } catch (err) {
+            console.error('Redis DEL error:', err.message);
+            return false;
+        }
+    }
+
+    /**
+     * Flush ALL attendance marks from Redis (admin use only)
+     */
+    async flushAllAttendanceMarks() {
+        try {
+            if (!isConnected) return { success: false, error: 'Redis not connected' };
+            const pattern = REDIS_KEYS.ATTENDANCE_MARKED + '*';
+            const keys = await this.client.keys(pattern);
+
+            if (keys.length === 0) {
+                return { success: true, deleted: 0 };
+            }
+
+            await this.client.del(...keys);
+            console.log(`🧹 Flushed ${keys.length} attendance marks from Redis`);
+            return { success: true, deleted: keys.length };
+        } catch (err) {
+            console.error('Redis FLUSH error:', err.message);
+            return { success: false, error: err.message };
+        }
+    }
+
+    /**
      * Check if specific token/nonce combination was used
      */
     async isTokenUsed(sessionId, nonce) {

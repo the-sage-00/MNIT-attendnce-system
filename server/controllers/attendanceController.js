@@ -283,8 +283,8 @@ export const markAttendance = async (req, res) => {
             console.log('🧹 Clearing stale Redis entry for sessionId:', sessionId);
 
             try {
-                // Delete the stale Redis entry
-                await redisService.client.del(`attendance:marked:${sessionId}:${student._id.toString()}`);
+                // Delete the stale Redis entry using the proper method
+                await redisService.clearAttendanceMark(sessionId, student._id.toString());
                 console.log('✅ Stale Redis entry cleared, proceeding with attendance');
             } catch (redisError) {
                 console.error('Failed to clear stale Redis entry:', redisError.message);

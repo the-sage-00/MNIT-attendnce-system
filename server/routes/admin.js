@@ -99,5 +99,29 @@ router.put('/pending-users/:id', processPendingUser);
 // ============================================
 router.post('/bulk-approve', bulkApproveStudents);
 
-export default router;
+// ============================================
+// REDIS CACHE MANAGEMENT (for fixing stale entries)
+// ============================================
+import { redisService } from '../config/redis.js';
 
+router.post('/flush-redis-attendance', async (req, res) => {
+    try {
+        const result = await redisService.flushAllAttendanceMarks();
+        if (result.success) {
+            res.json({
+                success: true,
+                message: `Flushed ${result.deleted} attendance marks from Redis cache`
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || 'Failed to flush Redis'
+            });
+        }
+    } catch (error) {
+        console.error('Flush Redis Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+});
+
+export default router;
