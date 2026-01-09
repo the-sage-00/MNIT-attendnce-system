@@ -124,4 +124,66 @@ router.post('/flush-redis-attendance', async (req, res) => {
     }
 });
 
+// Debug endpoint to check student's attendance records
+import { Attendance, Session } from '../models/index.js';
+
+router.get('/debug/student-attendance/:studentId', async (req, res) => {
+    try {
+        const { studentId } = req.params;
+
+        // Get all attendance records for this student
+        const records = await Attendance.find({ student: studentId })
+            .populate({
+                path: 'session',
+                select: 'startTime isActive course',
+                populate: { path: 'course', select: 'courseName courseCode' }
+            })
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        res.json({
+            success: true,
+            count: records.length,
+            records: records.map(r => ({
+                id: r._id,
+                sessionId: r.session?._id,
+                courseName: r.session?.course?.courseName,
+                courseCode: r.session?.course?.courseCode,
+                sessionActive: r.session?.isActive,
+                sessionStartTime: r.session?.startTime,
+                attendanceMarkedAt: r.createdAt,
+                status: r.status
+            }))
+        });
+    } catch (error) {
+        console.error('Debug Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+});
+
+// Debug endpoint to clear stale attendance for a student (for specific session)
+router.delete('/debug/clear-attendance/:studentId/:sessionId', async (req, res) => {
+    try {
+        const { studentId, sessionId } = req.params;
+
+        const result = await Attendance.deleteOne({
+            student: studentId,
+            session: sessionId
+        });
+
+        // Also clear from Redis
+        await redisService.clearAttendanceMark(sessionId, studentId);
+
+        res.json({
+            success: true,
+            message: `Deleted ${result.deletedCount} attendance record`,
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('Clear Attendance Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+});
+
 export default router;
+
