@@ -48,12 +48,26 @@ const Attend = () => {
     const [securityError, setSecurityError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Redirect if no QR data
+    // Redirect if no QR data, and reset all state when session changes
     useEffect(() => {
         if (!sessionId || !qrToken) {
             navigate('/student/scan-qr');
             return;
         }
+
+        // IMPORTANT: Reset ALL state when navigating to a new session
+        // This prevents stale "already marked" messages from previous sessions
+        setStep('init');
+        setStatusMsg('Initializing...');
+        setSessionInfo(null);
+        setLocation(null);
+        setLocationStatus('');
+        setDistance(null);
+        setIsSecurityBlocked(false);
+        setSecurityError(null);
+        setIsSubmitting(false);
+
+        // Fetch new session info
         fetchSessionInfo();
     }, [sessionId, qrToken]);
 
