@@ -160,6 +160,21 @@ const AdminDashboard = () => {
         setProcessingId(null);
     };
 
+    // Flush Redis Cache (for fixing stale attendance marks)
+    const handleFlushRedis = async () => {
+        if (!confirm('⚠️ Clear ALL attendance cache in Redis?\n\nThis will NOT delete actual attendance records from database.\nUse this to fix "already marked" errors on new sessions.')) {
+            return;
+        }
+        try {
+            const res = await axios.post(`${API_URL}/admin/flush-redis-attendance`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(res.data.message || 'Redis cache cleared!');
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to flush Redis');
+        }
+    };
+
     // Calculate pending totals
     const totalPending = pendingProfessors.length + claimRequests.length + electiveRequests.length + pendingUsers.length;
 
@@ -668,6 +683,19 @@ const AdminDashboard = () => {
                                         <div className="manage-info">
                                             <h3>System Settings</h3>
                                             <p>Configure system parameters and defaults.</p>
+                                        </div>
+                                        <span className="manage-arrow">→</span>
+                                    </div>
+
+                                    <div
+                                        className="manage-card danger"
+                                        onClick={handleFlushRedis}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className="manage-icon">🧹</div>
+                                        <div className="manage-info">
+                                            <h3>Clear Redis Cache</h3>
+                                            <p>Fix "already marked" errors. Clears stale attendance cache.</p>
                                         </div>
                                         <span className="manage-arrow">→</span>
                                     </div>
