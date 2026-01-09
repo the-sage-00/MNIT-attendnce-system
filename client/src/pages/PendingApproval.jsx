@@ -14,6 +14,12 @@ const PendingApproval = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const handleLogout = () => {
+        logout();
+        // Redirect to home/login page
+        window.location.href = '/';
+    };
+
     return (
         <div className="pending-container">
             <div className="pending-bg-animation">
@@ -37,19 +43,6 @@ const PendingApproval = () => {
                     <h3>Waiting for Admin Approval{dots}</h3>
                     <p>Your request for Professor access is under review.</p>
                 </div>
-
-                {/* User Info */}
-                {user && (
-                    <div className="pending-user-info">
-                        <div className="pending-user-avatar">
-                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
-                        <div>
-                            <p className="pending-user-name">{user.name}</p>
-                            <p className="pending-user-email">{user.email}</p>
-                        </div>
-                    </div>
-                )}
 
                 {/* Timeline */}
                 <div className="pending-timeline">
@@ -89,12 +82,10 @@ const PendingApproval = () => {
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="pending-actions">
-                    <button onClick={logout} className="pending-btn-logout">
-                        🚪 Logout & Login Again
-                    </button>
-                </div>
+                {/* Action Button */}
+                <button onClick={handleLogout} className="pending-btn-logout">
+                    🚪 Logout & Login Again
+                </button>
 
                 {/* Footer */}
                 <p className="pending-footer">

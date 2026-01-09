@@ -210,14 +210,14 @@
 
 /* Timeline - Compact */
 .pending-timeline {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .pending-timeline-item {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     position: relative;
-    padding-bottom: 16px;
+    padding-bottom: 12px;
 }
 
 .pending-timeline-item:not(:last-child)::before {
@@ -294,24 +294,24 @@
 /* Info Box - Compact */
 .pending-info-box {
     display: flex;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 12px;
     background: #e3f2fd;
-    border-radius: 12px;
+    border-radius: 10px;
     border-left: 3px solid #2196f3;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .pending-info-icon {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     flex-shrink: 0;
 }
 
 .pending-info-box h4 {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #1976d2;
-    margin: 0 0 8px 0;
+    margin: 0 0 6px 0;
 }
 
 .pending-info-box ul {
@@ -321,10 +321,10 @@
 }
 
 .pending-info-box li {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #424242;
-    padding: 4px 0;
-    padding-left: 18px;
+    padding: 3px 0;
+    padding-left: 16px;
     position: relative;
 }
 
@@ -336,16 +336,13 @@
     font-weight: 700;
 }
 
-/* Actions - Compact */
+/* Actions - Single Button */
 .pending-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
-.pending-btn-logout,
-.pending-btn-refresh {
-    flex: 1;
+.pending-btn-logout {
+    width: 100%;
     padding: 12px 20px;
     border: none;
     border-radius: 10px;
@@ -353,33 +350,14 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-}
-
-.pending-btn-refresh {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.pending-btn-refresh:hover:not(:disabled) {
+.pending-btn-logout:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.pending-btn-refresh:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.pending-btn-logout {
-    background: white;
-    color: #667eea;
-    border: 2px solid #667eea;
-}
-
-.pending-btn-logout:hover {
-    background: #f8f9fa;
-    transform: translateY(-2px);
 }
 
 /* Footer - Compact */
