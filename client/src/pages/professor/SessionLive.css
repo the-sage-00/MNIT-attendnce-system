@@ -710,6 +710,127 @@
     cursor: not-allowed;
 }
 
+/* Reject Button */
+.btn-reject {
+    padding: var(--space-2) var(--space-4);
+    background: transparent;
+    color: var(--error);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-reject:hover:not(:disabled) {
+    background: var(--error);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-reject:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+/* Section Title Group */
+.section-title-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-left: auto;
+}
+
+.btn-bulk {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    border: none;
+}
+
+.btn-accept-all {
+    background: var(--success);
+    color: white;
+}
+
+.btn-accept-all:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-reject-all {
+    background: transparent;
+    color: var(--error);
+    border: 1px solid var(--error);
+}
+
+.btn-reject-all:hover {
+    background: var(--error);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Mobile adjustments for failed section */
+@media (max-width: 640px) {
+    .failed-section .section-header {
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+
+    .section-title-group {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .bulk-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .failed-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
+    }
+
+    .failed-meta {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .action-buttons {
+        justify-content: stretch;
+    }
+
+    .action-buttons button {
+        flex: 1;
+        text-align: center;
+    }
+}
+
 /* ===================================
    ATTENDEES SECTION
    =================================== */

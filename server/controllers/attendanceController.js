@@ -1475,6 +1475,215 @@ export const acceptFailedAttempt = async (req, res) => {
     }
 };
 
+/**
+ * @route   POST /api/attendance/failed-attempt/:attemptId/reject
+ * @desc    Reject a failed attendance attempt and flag the student
+ * @access  Private (Professor)
+ */
+export const rejectFailedAttempt = async (req, res) => {
+    try {
+        const { attemptId } = req.params;
+        const { reason, flagStudent } = req.body;
+
+        const failedAttempt = await FailedAttempt.findById(attemptId);
+        if (!failedAttempt) {
+            return res.status(404).json({ success: false, error: 'Failed attempt not found' });
+        }
+
+        if (failedAttempt.status !== 'PENDING') {
+            return res.status(400).json({ success: false, error: 'This attempt has already been reviewed' });
+        }
+
+        // Verify session and professor ownership
+        const session = await Session.findById(failedAttempt.session).populate('course');
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Session not found' });
+        }
+
+        const isProfessorClaimed = session.course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        // Update failed attempt status to REJECTED
+        failedAttempt.status = 'REJECTED';
+        failedAttempt.reviewedBy = req.user._id;
+        failedAttempt.reviewedAt = new Date();
+        failedAttempt.reviewNote = reason || 'Rejected by professor - attendance not valid';
+        await failedAttempt.save();
+
+        // Log this rejection as an audit event
+        await AuditLog.log({
+            eventType: 'ATTENDANCE_REJECTED',
+            userId: failedAttempt.student,
+            sessionId: session._id,
+            courseId: session.course._id,
+            reviewedBy: req.user._id,
+            reason: reason || 'Location too far - rejected by professor',
+            distance: failedAttempt.distance,
+            timestamp: new Date()
+        });
+
+        res.json({
+            success: true,
+            message: `Attendance rejected for ${failedAttempt.studentName}`,
+            data: failedAttempt
+        });
+    } catch (error) {
+        console.error('Reject Failed Attempt Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   POST /api/attendance/session/:sessionId/failed-attempts/accept-all
+ * @desc    Accept all pending failed attempts for a session
+ * @access  Private (Professor)
+ */
+export const acceptAllFailedAttempts = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { note } = req.body;
+
+        // Verify session and professor ownership
+        const session = await Session.findById(sessionId).populate('course');
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Session not found' });
+        }
+
+        const isProfessorClaimed = session.course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        // Get all pending failed attempts
+        const pendingAttempts = await FailedAttempt.find({
+            session: sessionId,
+            status: 'PENDING'
+        });
+
+        if (pendingAttempts.length === 0) {
+            return res.status(400).json({ success: false, error: 'No pending attempts to accept' });
+        }
+
+        let acceptedCount = 0;
+        let skippedCount = 0;
+
+        for (const attempt of pendingAttempts) {
+            // Check if already has attendance
+            const existingAttendance = await Attendance.findOne({
+                session: sessionId,
+                student: attempt.student
+            });
+
+            if (existingAttendance) {
+                skippedCount++;
+                attempt.status = 'ACCEPTED';
+                attempt.reviewNote = 'Already had attendance';
+                await attempt.save();
+                continue;
+            }
+
+            // Create attendance record
+            await Attendance.create({
+                session: sessionId,
+                student: attempt.student,
+                studentName: attempt.studentName,
+                rollNo: attempt.rollNo,
+                status: 'PRESENT',
+                timestamp: attempt.attemptedAt,
+                location: attempt.location,
+                latitude: attempt.location?.latitude || 0,
+                longitude: attempt.location?.longitude || 0,
+                distance: attempt.distance || 0,
+                deviceFingerprint: attempt.deviceFingerprint || 'bulk-accept',
+                deviceHash: attempt.deviceFingerprint || 'bulk-accept',
+                markedBy: 'admin',
+                verifiedBy: req.user._id,
+                notes: `Bulk accepted by professor. ${note || ''}`
+            });
+
+            // Update failed attempt
+            attempt.status = 'ACCEPTED';
+            attempt.reviewedBy = req.user._id;
+            attempt.reviewedAt = new Date();
+            attempt.reviewNote = note || 'Bulk accepted by professor';
+            await attempt.save();
+
+            acceptedCount++;
+        }
+
+        // Update session attendance count
+        await Session.findByIdAndUpdate(sessionId, {
+            $inc: { attendanceCount: acceptedCount },
+            lastAttendanceAt: new Date()
+        });
+
+        res.json({
+            success: true,
+            message: `Accepted ${acceptedCount} students${skippedCount > 0 ? `, ${skippedCount} already had attendance` : ''}`,
+            data: { acceptedCount, skippedCount }
+        });
+    } catch (error) {
+        console.error('Accept All Failed Attempts Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+/**
+ * @route   POST /api/attendance/session/:sessionId/failed-attempts/reject-all
+ * @desc    Reject all pending failed attempts for a session
+ * @access  Private (Professor)
+ */
+export const rejectAllFailedAttempts = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { reason } = req.body;
+
+        // Verify session and professor ownership
+        const session = await Session.findById(sessionId).populate('course');
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Session not found' });
+        }
+
+        const isProfessorClaimed = session.course.claimedBy?.some(
+            profId => profId.toString() === req.user._id.toString()
+        );
+
+        if (!isProfessorClaimed && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        // Reject all pending failed attempts
+        const result = await FailedAttempt.updateMany(
+            { session: sessionId, status: 'PENDING' },
+            {
+                $set: {
+                    status: 'REJECTED',
+                    reviewedBy: req.user._id,
+                    reviewedAt: new Date(),
+                    reviewNote: reason || 'Bulk rejected by professor - location too far'
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: `Rejected ${result.modifiedCount} students`,
+            data: { rejectedCount: result.modifiedCount }
+        });
+    } catch (error) {
+        console.error('Reject All Failed Attempts Error:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 export default {
     markAttendance,
     getMyAttendance,
@@ -1486,5 +1695,8 @@ export default {
     getSessionDetails,
     getStudentSummary,
     getFailedAttempts,
-    acceptFailedAttempt
+    acceptFailedAttempt,
+    rejectFailedAttempt,
+    acceptAllFailedAttempts,
+    rejectAllFailedAttempts
 };

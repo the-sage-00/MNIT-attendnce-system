@@ -10,7 +10,10 @@ import {
     getSessionDetails,
     getStudentSummary,
     getFailedAttempts,
-    acceptFailedAttempt
+    acceptFailedAttempt,
+    rejectFailedAttempt,
+    acceptAllFailedAttempts,
+    rejectAllFailedAttempts
 } from '../controllers/attendanceController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { rateLimitAttendance } from '../middleware/rateLimiter.js';
@@ -49,6 +52,15 @@ router.get('/session/:sessionId/failed-attempts', authorize('professor', 'admin'
 // Manually accept a failed attendance attempt
 router.post('/failed-attempt/:attemptId/accept', authorize('professor', 'admin'), acceptFailedAttempt);
 
+// Reject a failed attendance attempt
+router.post('/failed-attempt/:attemptId/reject', authorize('professor', 'admin'), rejectFailedAttempt);
+
+// Bulk accept all pending failed attempts for a session
+router.post('/session/:sessionId/failed-attempts/accept-all', authorize('professor', 'admin'), acceptAllFailedAttempts);
+
+// Bulk reject all pending failed attempts for a session
+router.post('/session/:sessionId/failed-attempts/reject-all', authorize('professor', 'admin'), rejectAllFailedAttempts);
+
 // Get complete course attendance with all students and sessions
 router.get('/course/:courseId', authorize('professor', 'admin'), getCourseAttendance);
 
@@ -66,3 +78,4 @@ router.get('/suspicious', authorize('admin'), getSuspiciousAttendance);
 router.get('/audit/:studentId', authorize('admin'), getStudentAudit);
 
 export default router;
+

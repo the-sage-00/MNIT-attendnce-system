@@ -151,6 +151,57 @@ const SessionLive = () => {
         setAcceptingId(null);
     };
 
+    const handleRejectStudent = async (attemptId, studentName) => {
+        if (!confirm(`Reject attendance for ${studentName}? They will be marked as ABSENT.`)) return;
+
+        setAcceptingId(attemptId);
+        try {
+            await axios.post(`${API_URL}/attendance/failed-attempt/${attemptId}/reject`, {
+                reason: 'Rejected - location too far from classroom'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.info(`Attendance rejected for ${studentName}`);
+            fetchFailedAttempts();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to reject');
+        }
+        setAcceptingId(null);
+    };
+
+    const handleAcceptAll = async () => {
+        if (!confirm(`Accept ALL ${failedAttempts.length} students who were too far away?`)) return;
+
+        try {
+            const res = await axios.post(`${API_URL}/attendance/session/${id}/failed-attempts/accept-all`, {
+                note: 'Bulk accepted during live session'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(res.data.message || `Accepted ${failedAttempts.length} students`);
+            fetchStats();
+            fetchFailedAttempts();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to accept all');
+        }
+    };
+
+    const handleRejectAll = async () => {
+        if (!confirm(`Reject ALL ${failedAttempts.length} students? They will NOT receive attendance.`)) return;
+
+        try {
+            const res = await axios.post(`${API_URL}/attendance/session/${id}/failed-attempts/reject-all`, {
+                reason: 'Bulk rejected - location too far from classroom'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.info(res.data.message || `Rejected ${failedAttempts.length} students`);
+            fetchFailedAttempts();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to reject all');
+        }
+    };
+
     const handleForceRefresh = async () => {
         setIsRefreshing(true);
         try {
@@ -426,8 +477,26 @@ const SessionLive = () => {
                 {failedAttempts.length > 0 && (
                     <section className="failed-section">
                         <div className="section-header">
-                            <h3>⚠️ Needs Review</h3>
-                            <span className="count-badge">{failedAttempts.length}</span>
+                            <div className="section-title-group">
+                                <h3>⚠️ Needs Review</h3>
+                                <span className="count-badge">{failedAttempts.length}</span>
+                            </div>
+                            <div className="bulk-actions">
+                                <button
+                                    className="btn-bulk btn-accept-all"
+                                    onClick={handleAcceptAll}
+                                    title="Accept all pending students"
+                                >
+                                    ✓ Accept All
+                                </button>
+                                <button
+                                    className="btn-bulk btn-reject-all"
+                                    onClick={handleRejectAll}
+                                    title="Reject all pending students"
+                                >
+                                    ✗ Reject All
+                                </button>
+                            </div>
                         </div>
                         <p className="section-hint">Students who tried but were too far away</p>
                         <div className="failed-list">
@@ -453,13 +522,24 @@ const SessionLive = () => {
                                             })}
                                         </span>
                                     </div>
-                                    <button
-                                        className="btn-accept"
-                                        onClick={() => handleAcceptStudent(attempt._id, attempt.studentName)}
-                                        disabled={acceptingId === attempt._id}
-                                    >
-                                        {acceptingId === attempt._id ? '...' : '✓ Accept'}
-                                    </button>
+                                    <div className="action-buttons">
+                                        <button
+                                            className="btn-accept"
+                                            onClick={() => handleAcceptStudent(attempt._id, attempt.studentName)}
+                                            disabled={acceptingId === attempt._id}
+                                            title="Accept this student's attendance"
+                                        >
+                                            {acceptingId === attempt._id ? '...' : '✓ Accept'}
+                                        </button>
+                                        <button
+                                            className="btn-reject"
+                                            onClick={() => handleRejectStudent(attempt._id, attempt.studentName)}
+                                            disabled={acceptingId === attempt._id}
+                                            title="Reject - student will be marked absent"
+                                        >
+                                            {acceptingId === attempt._id ? '...' : '✗ Reject'}
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
