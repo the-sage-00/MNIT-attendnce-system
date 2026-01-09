@@ -250,7 +250,17 @@ export const markAttendance = async (req, res) => {
         });
 
         if (alreadyMarkedDB) {
-            console.log('❌ BLOCKED BY MONGODB: Already marked in DB for session._id:', session._id.toString());
+            // Detailed debug logging to understand what's happening
+            console.log('❌ BLOCKED BY MONGODB: Already marked!');
+            console.log('   Session ID (from QR):', sessionId);
+            console.log('   Session ID (from DB):', session._id.toString());
+            console.log('   Course:', session.course?.courseName || course?.courseName);
+            console.log('   Course Code:', session.course?.courseCode || course?.courseCode);
+            console.log('   Student:', student.email, student.rollNo);
+            console.log('   Existing record ID:', alreadyMarkedDB._id.toString());
+            console.log('   Existing record timestamp:', alreadyMarkedDB.createdAt);
+            console.log('   Session start time:', session.startTime);
+
             // Ensure Redis is in sync
             await redisService.markAttendanceComplete(session._id.toString(), student._id.toString());
             await logAudit('ATTENDANCE_FAILED', {
@@ -265,7 +275,13 @@ export const markAttendance = async (req, res) => {
                 success: false,
                 error: 'Attendance already marked for this session',
                 code: 'ALREADY_MARKED',
-                debug: { source: 'mongodb', sessionId: session._id.toString() }
+                debug: {
+                    source: 'mongodb',
+                    sessionId: session._id.toString(),
+                    courseName: session.course?.courseName || course?.courseName,
+                    existingRecordAt: alreadyMarkedDB.createdAt,
+                    sessionStartTime: session.startTime
+                }
             });
         }
 
