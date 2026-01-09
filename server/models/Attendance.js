@@ -106,7 +106,12 @@ const attendanceSchema = new mongoose.Schema({
             'LOW_PRECISION_COORDINATES',
             'ZERO_ALTITUDE',
             'MISSING_ACCURACY',
-            'NEAR_EDGE'
+            'NEAR_EDGE',
+            // V5 additions - used in controller
+            'TOKEN_REPLAY_ATTEMPT',
+            'MULTI_STUDENT_DEVICE',
+            'TOO_MANY_DEVICES',
+            'EXTENDED_ALLOWANCE'
         ]
     }],
     suspicionScore: {

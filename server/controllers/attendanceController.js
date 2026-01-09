@@ -295,14 +295,15 @@ export const markAttendance = async (req, res) => {
         validationResults.replayCheckPassed = true;
 
         // Check if specific token/nonce was already used
+        // Use session._id (validated) instead of request sessionId for consistency
         if (nonce) {
-            const tokenUsed = await redisService.isTokenUsed(sessionId, nonce);
+            const tokenUsed = await redisService.isTokenUsed(session._id.toString(), nonce);
             if (tokenUsed) {
                 securityFlags.push('TOKEN_REPLAY_ATTEMPT');
                 suspicionScore += 30;
                 await redisService.logSuspiciousActivity(
                     student._id.toString(),
-                    sessionId,
+                    session._id.toString(),
                     'TOKEN_REPLAY',
                     { nonce }
                 );
