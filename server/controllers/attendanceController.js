@@ -252,7 +252,7 @@ export const markAttendance = async (req, res) => {
         if (alreadyMarkedDB) {
             console.log('❌ BLOCKED BY MONGODB: Already marked in DB for session._id:', session._id.toString());
             // Ensure Redis is in sync
-            await redisService.markAttendanceComplete(sessionId, student._id.toString());
+            await redisService.markAttendanceComplete(session._id.toString(), student._id.toString());
             await logAudit('ATTENDANCE_FAILED', {
                 userId: student._id,
                 userEmail: student.email,
@@ -270,8 +270,9 @@ export const markAttendance = async (req, res) => {
         }
 
         // SECOND: Check Redis (for fast duplicate prevention during same request)
+        // Use session._id consistently for all Redis operations
         const alreadyMarkedRedis = await redisService.isAttendanceMarked(
-            sessionId,
+            session._id.toString(),
             student._id.toString()
         );
 
@@ -284,7 +285,7 @@ export const markAttendance = async (req, res) => {
 
             try {
                 // Delete the stale Redis entry using the proper method
-                await redisService.clearAttendanceMark(sessionId, student._id.toString());
+                await redisService.clearAttendanceMark(session._id.toString(), student._id.toString());
                 console.log('✅ Stale Redis entry cleared, proceeding with attendance');
             } catch (redisError) {
                 console.error('Failed to clear stale Redis entry:', redisError.message);
@@ -703,9 +704,10 @@ export const markAttendance = async (req, res) => {
 
         // ONLY mark in Redis AFTER successful MongoDB save
         // This prevents the "already marked" error on retry if MongoDB fails
-        await redisService.markAttendanceComplete(sessionId, student._id.toString());
+        // Use session._id consistently for all Redis operations
+        await redisService.markAttendanceComplete(session._id.toString(), student._id.toString());
         if (nonce) {
-            await redisService.markTokenUsed(sessionId, nonce, student._id.toString());
+            await redisService.markTokenUsed(session._id.toString(), nonce, student._id.toString());
         }
 
         // Update session attendance count
