@@ -234,11 +234,22 @@ export const markAttendance = async (req, res) => {
         // CHECK 5: Replay Protection (Redis)
         // ========================================
         // Check if this student already marked in this session
+
+        // DEBUG: Log session IDs to verify they're the same
+        console.log('🔍 ATTENDANCE CHECK DEBUG:', {
+            requestSessionId: sessionId,
+            dbSessionId: session._id.toString(),
+            match: sessionId === session._id.toString(),
+            studentId: student._id.toString(),
+            rollNo: student.rollNo
+        });
+
         const alreadyMarkedRedis = await redisService.isAttendanceMarked(
             sessionId,
             student._id.toString()
         );
         if (alreadyMarkedRedis) {
+            console.log('❌ BLOCKED BY REDIS: Already marked in Redis for sessionId:', sessionId);
             await logAudit('ATTENDANCE_FAILED', {
                 userId: student._id,
                 userEmail: student.email,
@@ -250,7 +261,8 @@ export const markAttendance = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Attendance already marked for this session',
-                code: 'ALREADY_MARKED'
+                code: 'ALREADY_MARKED',
+                debug: { source: 'redis', sessionId }
             });
         }
 
@@ -260,12 +272,14 @@ export const markAttendance = async (req, res) => {
             student: student._id
         });
         if (alreadyMarkedDB) {
+            console.log('❌ BLOCKED BY MONGODB: Already marked in DB for session._id:', session._id.toString());
             // Update Redis for consistency
             await redisService.markAttendanceComplete(sessionId, student._id.toString());
             return res.status(400).json({
                 success: false,
                 error: 'Attendance already marked for this session',
-                code: 'ALREADY_MARKED'
+                code: 'ALREADY_MARKED',
+                debug: { source: 'mongodb', sessionId: session._id.toString() }
             });
         }
         validationResults.replayCheckPassed = true;
