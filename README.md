@@ -48,10 +48,10 @@
 ### 🔑 STEP 2: Create a Professor Account
 
 1. Go back to **[checkatte.vercel.app](https://checkatte.vercel.app/)**
-2. Click **"Professor Login"** → **"Sign Up"**
-3. Use **any email** (e.g., `professor@gmail.com`, `test@example.com`)
+2. Click **"Professor Login"** → **"Login with Google"**
+3. Login with **any Google account** (e.g., `yourname@gmail.com`)
 4. **Important**: Go back to Admin Dashboard → Approvals → Approve the professor
-5. ✅ Now login as the professor!
+5. ✅ Now login as the professor again!
 
 **What Professor Can Do:**
 - 🎯 Claim courses to teach
@@ -64,8 +64,8 @@
 ### 🔑 STEP 3: Create a Student Account
 
 1. Go to **[checkatte.vercel.app](https://checkatte.vercel.app/)**
-2. Click **"Student Login"** → **"Sign Up"**
-3. Use email format: `2024ucp1234@mnit.ac.in`
+2. Click **"Student Login"** → **"Login with Google"**
+3. Login with your **MNIT email** (format: `2024ucp1234@mnit.ac.in`)
    - `2024` = admission year
    - `ucp` = branch code (ucp, uce, uec, uee, ume, umt, uch)
    - `1234` = roll number
@@ -100,13 +100,13 @@
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 🔑 Demo Credentials
+### 🔑 Login Methods
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | `admin@classcheck.com` | `Admin@123` |
-| **Professor** | Sign up with any email 
-| **Student** | Sign up with your MNIT student email (e.g., `2024ucp1234@mnit.ac.in`)
+| Role | Login Method | Notes |
+|------|--------------|-------|
+| **Admin** | Email/Password | `admin@classcheck.com` / `Admin@123` |
+| **Professor** | Google OAuth | Any Google account (requires admin approval)
+| **Student** | Google OAuth | MNIT email only (e.g., `2024ucp1234@mnit.ac.in`)
 
 ### � Important: Use Mobile Phone for Session Creation
 
@@ -130,7 +130,7 @@
 
 #### Step 2️⃣: Professor Flow
 
-1. **Sign Up** with an MNIT professor email
+1. **Login with Google** using any Google account
 2. **Wait for Admin Approval** (or approve yourself as admin)
 3. **Claim a Course**: Browse available courses → Request to claim
 4. **Start a Session**:
@@ -146,8 +146,8 @@
 
 #### Step 3️⃣: Student Flow
 
-1. **Sign Up** with MNIT student email (format: `2024ucp1234@mnit.ac.in`)
-2. **Login** to see your courses (auto-enrolled based on branch & year)
+1. **Login with Google** using your MNIT email (format: `2024ucp1234@mnit.ac.in`)
+2. See your courses (auto-enrolled based on branch & year)
 3. **Scan QR Code**: When professor starts session
    - Allow camera & location permissions
    - Point camera at QR code displayed by professor
@@ -279,7 +279,7 @@ We've built a **multi-layer verification system** that makes proxy attendance vi
 | Static QR codes | **Rotating QR with HMAC tokens** (changes every 2 min) |
 | No location check | **Adaptive GPS geo-fencing** (50-200m dynamic radius) |
 | Any device can scan | **Device binding** (max 3 devices per student) |
-| Single GPS reading | **Multi-sample GPS** (3-5 samples for accuracy) |
+| Single GPS reading | **Multi-sample GPS** (3-5 samples for accura  cy) |
 | No fraud detection | **7-layer security chain** with real-time validation |
 
 ---
@@ -498,15 +498,16 @@ Submit to server
 
 ---
 
-#### **Step 5: Device Management**
+#### **Step 5: Device Tracking (Automatic)**
 
 ```
-📱 My Devices (Max 3):
-├── iPhone 13 - Active, Trust: 100
-├── Samsung Galaxy - Active, Trust: 85
-└── [Empty Slot]
+📱 Device Management:
+├── Maximum 3 devices allowed per student
+├── Devices are automatically registered on first login
+├── Trust score (0-100) tracks device reliability
+└── Devices blocked automatically if trust score drops below 20
 
-Devices auto-register on first use.
+Note: Device tracking happens automatically in the background.
 ```
 
 ---
@@ -634,9 +635,10 @@ Devices auto-register on first use.
 │  ├── Course Claims: 5                                        │
 │  └── Elective Requests: 8                                   │
 │                                                             │
-│  🚨 Security Alerts                                         │
-│  ├── Device blocked: student123 (2 min ago)                 │
-│  └── GPS spoof detected: student456 (1 hr ago)              │
+│  ⚡ Quick Actions                                            │
+│  ├── Manage Courses                                          │
+│  ├── View Students                                           │
+│  └── View Professors                                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -686,14 +688,17 @@ ELECTIVE REQUESTS (Student → Course):
 
 ---
 
-#### **Step 6: Security Monitoring**
+#### **Step 6: Security Monitoring (Backend)**
 
 ```
-VIEW:
-├── Suspicious attendance records
-├── Flagged devices
-├── Security event logs
-└── Complete audit trail (90 days)
+AUDIT LOGS (stored automatically):
+├── All attendance attempts (success/failure)
+├── Device registrations and blocks
+├── GPS spoofing detection events
+├── Rate limit violations
+└── Complete audit trail (auto-expires after 90 days)
+
+Note: Audit data is stored in MongoDB and available via API.
 ```
 
 ---

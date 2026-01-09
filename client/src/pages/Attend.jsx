@@ -375,12 +375,17 @@ const Attend = () => {
             // Regular error
             setStep('error');
 
-            // V5: Build user-friendly error message
+            // V5: Build user-friendly error message based on error type
             let errMsg = errData?.error || 'Failed to mark attendance.';
 
-            // Add distance info if available
-            if (errData?.distance && errData?.allowedRadius) {
-                errMsg = `📍 You are ${errData.distance}m away from the classroom. Allowed: ${errData.allowedRadius}m`;
+            // Handle specific error codes with clear messages
+            if (errorCode === 'ALREADY_MARKED' || errMsg.toLowerCase().includes('already marked')) {
+                errMsg = '✅ Attendance already marked for this session!\n\nYou have already successfully marked your attendance.';
+            } else if (errorCode === 'DEVICE_ALREADY_USED' || errMsg.toLowerCase().includes('device has already been used')) {
+                errMsg = '📱 This device was already used by another student in this session.\n\nEach student must use their own device.';
+            } else if (errData?.distance && errData?.allowedRadius) {
+                // Add distance info if available
+                errMsg = `📍 You are ${errData.distance}m away from the classroom.\n\nAllowed range: ${errData.allowedRadius}m`;
             }
 
             // Add hint if provided by server

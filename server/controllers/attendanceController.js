@@ -249,7 +249,8 @@ export const markAttendance = async (req, res) => {
             });
             return res.status(400).json({
                 success: false,
-                error: 'Attendance already marked'
+                error: 'Attendance already marked for this session',
+                code: 'ALREADY_MARKED'
             });
         }
 
@@ -263,7 +264,8 @@ export const markAttendance = async (req, res) => {
             await redisService.markAttendanceComplete(sessionId, student._id.toString());
             return res.status(400).json({
                 success: false,
-                error: 'Attendance already marked'
+                error: 'Attendance already marked for this session',
+                code: 'ALREADY_MARKED'
             });
         }
         validationResults.replayCheckPassed = true;
@@ -325,7 +327,8 @@ export const markAttendance = async (req, res) => {
                 });
                 return res.status(409).json({
                     success: false,
-                    error: 'This device has already been used by another student in this session'
+                    error: 'This device has already been used by another student in this session',
+                    code: 'DEVICE_ALREADY_USED'
                 });
             }
         }
@@ -632,13 +635,12 @@ export const markAttendance = async (req, res) => {
             status = 'SUSPICIOUS';
         }
 
-        // Mark in Redis first (prevents race conditions)
-        await redisService.markAttendanceComplete(sessionId, student._id.toString());
-        if (nonce) {
-            await redisService.markTokenUsed(sessionId, nonce, student._id.toString());
-        }
+        // ========================================
+        // IMPORTANT: Create MongoDB record FIRST, then mark Redis
+        // This ensures that if MongoDB fails, Redis doesn't block retries
+        // ========================================
 
-        // Create attendance record
+        // Create attendance record in MongoDB FIRST
         const attendance = await Attendance.create({
             session: session._id,
             student: student._id,
@@ -673,6 +675,13 @@ export const markAttendance = async (req, res) => {
             suspicionScore,
             markedBy: 'self'
         });
+
+        // ONLY mark in Redis AFTER successful MongoDB save
+        // This prevents the "already marked" error on retry if MongoDB fails
+        await redisService.markAttendanceComplete(sessionId, student._id.toString());
+        if (nonce) {
+            await redisService.markTokenUsed(sessionId, nonce, student._id.toString());
+        }
 
         // Update session attendance count
         await Session.findByIdAndUpdate(session._id, {
@@ -741,17 +750,46 @@ export const markAttendance = async (req, res) => {
             validationDetails: validationResults
         });
 
-        // Handle duplicate key error (race condition)
+        // Handle duplicate key error (race condition - attendance exists in MongoDB)
         if (error.code === 11000) {
+            // Also update Redis for consistency
+            try {
+                await redisService.markAttendanceComplete(req.body?.sessionId, student._id.toString());
+            } catch (redisErr) {
+                // Ignore Redis errors here
+            }
             return res.status(400).json({
                 success: false,
-                error: 'Attendance already marked'
+                error: 'Attendance already marked for this session',
+                code: 'ALREADY_MARKED'
             });
         }
 
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid data provided: ' + Object.values(error.errors).map(e => e.message).join(', '),
+                code: 'VALIDATION_ERROR'
+            });
+        }
+
+        // Handle MongoDB connection errors
+        if (error.name === 'MongoNetworkError' || error.name === 'MongoTimeoutError') {
+            return res.status(503).json({
+                success: false,
+                error: 'Database temporarily unavailable. Please try again in a few seconds.',
+                code: 'DATABASE_ERROR',
+                retryAfter: 5
+            });
+        }
+
+        // Default error - provide more context
         res.status(500).json({
             success: false,
-            error: 'Failed to process attendance'
+            error: 'Server error while marking attendance. Please try again.',
+            code: 'INTERNAL_ERROR',
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };
