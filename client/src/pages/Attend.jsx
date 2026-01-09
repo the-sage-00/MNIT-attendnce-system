@@ -395,6 +395,10 @@ const Attend = () => {
             // Handle specific error codes with clear messages
             if (errorCode === 'ALREADY_MARKED' || errMsg.toLowerCase().includes('already marked')) {
                 errMsg = '✅ Attendance already marked for this session!\n\nYou have already successfully marked your attendance.';
+                // Add debug info if available
+                if (errData?.debug) {
+                    errMsg += `\n\n[Debug: ${errData.debug.source}, session: ${errData.debug.sessionId?.substring(0, 8)}...]`;
+                }
             } else if (errorCode === 'DEVICE_ALREADY_USED' || errMsg.toLowerCase().includes('device has already been used')) {
                 errMsg = '📱 This device was already used by another student in this session.\n\nEach student must use their own device.';
             } else if (errData?.distance && errData?.allowedRadius) {
