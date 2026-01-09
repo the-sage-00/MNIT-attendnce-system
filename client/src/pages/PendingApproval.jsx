@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import API_URL from '../config/api';
 import './PendingApproval.css';
 
 const PendingApproval = () => {
-    const { logout, user, token } = useAuth();
-    const navigate = useNavigate();
+    const { logout, user } = useAuth();
     const [dots, setDots] = useState('');
-    const [checking, setChecking] = useState(false);
 
     // Animated dots effect
     useEffect(() => {
@@ -18,56 +13,6 @@ const PendingApproval = () => {
         }, 500);
         return () => clearInterval(interval);
     }, []);
-
-    // Auto-check approval status every 10 seconds
-    useEffect(() => {
-        const checkApprovalStatus = async () => {
-            if (!token || checking) return;
-
-            try {
-                setChecking(true);
-                // Try to fetch user profile - if approved, this will succeed
-                const res = await axios.get(`${API_URL}/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                // If user is approved, redirect to dashboard
-                if (res.data.data.isApproved) {
-                    window.location.href = '/professor/dashboard';
-                }
-            } catch (error) {
-                // Still pending, do nothing
-            } finally {
-                setChecking(false);
-            }
-        };
-
-        // Check immediately
-        checkApprovalStatus();
-
-        // Then check every 10 seconds
-        const interval = setInterval(checkApprovalStatus, 10000);
-        return () => clearInterval(interval);
-    }, [token, navigate, checking]);
-
-    const handleRefresh = async () => {
-        setChecking(true);
-        try {
-            const res = await axios.get(`${API_URL}/auth/me`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (res.data.data.isApproved) {
-                window.location.href = '/professor/dashboard';
-            } else {
-                alert('Still pending approval. Please wait for admin to approve.');
-            }
-        } catch (error) {
-            alert('Error checking status. Please try again.');
-        } finally {
-            setChecking(false);
-        }
-    };
 
     return (
         <div className="pending-container">
@@ -126,7 +71,7 @@ const PendingApproval = () => {
                         <div className="pending-timeline-dot"></div>
                         <div>
                             <h4>Access Granted</h4>
-                            <p>You'll be redirected</p>
+                            <p>Login again to access</p>
                         </div>
                     </div>
                 </div>
@@ -138,25 +83,22 @@ const PendingApproval = () => {
                         <h4>What happens next?</h4>
                         <ul>
                             <li>Admin will review your request</li>
-                            <li>You'll be auto-redirected when approved</li>
-                            <li>Or click "Check Status" to refresh</li>
+                            <li>Once approved, logout and login again</li>
+                            <li>You'll then have full access</li>
                         </ul>
                     </div>
                 </div>
 
                 {/* Actions */}
                 <div className="pending-actions">
-                    <button onClick={handleRefresh} className="pending-btn-refresh" disabled={checking}>
-                        {checking ? 'Checking...' : '🔄 Check Status'}
-                    </button>
                     <button onClick={logout} className="pending-btn-logout">
-                        🚪 Logout
+                        🚪 Logout & Login Again
                     </button>
                 </div>
 
-                {/* Auto-refresh notice */}
+                {/* Footer */}
                 <p className="pending-footer">
-                    Auto-checking every 10 seconds...
+                    Contact admin if approval takes too long
                 </p>
             </div>
         </div>
