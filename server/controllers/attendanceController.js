@@ -231,9 +231,8 @@ export const markAttendance = async (req, res) => {
         validationResults.tokenValid = true;
 
         // ========================================
-        // CHECK 5: Replay Protection (Redis)
+        // CHECK 5: Replay Protection (MongoDB is source of truth)
         // ========================================
-        // Check if this student already marked in this session
 
         // DEBUG: Log session IDs to verify they're the same
         console.log('🔍 ATTENDANCE CHECK DEBUG:', {
@@ -244,17 +243,21 @@ export const markAttendance = async (req, res) => {
             rollNo: student.rollNo
         });
 
-        const alreadyMarkedRedis = await redisService.isAttendanceMarked(
-            sessionId,
-            student._id.toString()
-        );
-        if (alreadyMarkedRedis) {
-            console.log('❌ BLOCKED BY REDIS: Already marked in Redis for sessionId:', sessionId);
+        // FIRST: Check MongoDB (the source of truth)
+        const alreadyMarkedDB = await Attendance.findOne({
+            session: session._id,
+            student: student._id
+        });
+
+        if (alreadyMarkedDB) {
+            console.log('❌ BLOCKED BY MONGODB: Already marked in DB for session._id:', session._id.toString());
+            // Ensure Redis is in sync
+            await redisService.markAttendanceComplete(sessionId, student._id.toString());
             await logAudit('ATTENDANCE_FAILED', {
                 userId: student._id,
                 userEmail: student.email,
                 sessionId: session._id,
-                failureReason: 'Already marked (Redis cache)',
+                failureReason: 'Already marked (verified in database)',
                 failureCode: 'ALREADY_MARKED',
                 ipAddress
             });
@@ -262,26 +265,33 @@ export const markAttendance = async (req, res) => {
                 success: false,
                 error: 'Attendance already marked for this session',
                 code: 'ALREADY_MARKED',
-                debug: { source: 'redis', sessionId }
-            });
-        }
-
-        // Double-check in MongoDB (in case Redis was unavailable earlier)
-        const alreadyMarkedDB = await Attendance.findOne({
-            session: session._id,
-            student: student._id
-        });
-        if (alreadyMarkedDB) {
-            console.log('❌ BLOCKED BY MONGODB: Already marked in DB for session._id:', session._id.toString());
-            // Update Redis for consistency
-            await redisService.markAttendanceComplete(sessionId, student._id.toString());
-            return res.status(400).json({
-                success: false,
-                error: 'Attendance already marked for this session',
-                code: 'ALREADY_MARKED',
                 debug: { source: 'mongodb', sessionId: session._id.toString() }
             });
         }
+
+        // SECOND: Check Redis (for fast duplicate prevention during same request)
+        const alreadyMarkedRedis = await redisService.isAttendanceMarked(
+            sessionId,
+            student._id.toString()
+        );
+
+        if (alreadyMarkedRedis) {
+            // Redis says marked, but MongoDB says NOT marked
+            // This is a STALE REDIS ENTRY from a failed previous attempt
+            // Clear it and allow attendance to proceed!
+            console.log('⚠️ STALE REDIS ENTRY DETECTED! Redis says marked but MongoDB says no.');
+            console.log('🧹 Clearing stale Redis entry for sessionId:', sessionId);
+
+            try {
+                // Delete the stale Redis entry
+                await redisService.client.del(`attendance:marked:${sessionId}:${student._id.toString()}`);
+                console.log('✅ Stale Redis entry cleared, proceeding with attendance');
+            } catch (redisError) {
+                console.error('Failed to clear stale Redis entry:', redisError.message);
+                // Continue anyway - MongoDB is the source of truth
+            }
+        }
+
         validationResults.replayCheckPassed = true;
 
         // Check if specific token/nonce was already used
