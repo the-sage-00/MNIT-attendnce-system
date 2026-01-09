@@ -17,6 +17,8 @@ import AdminCourses from './pages/admin/Courses';
 import AdminStudents from './pages/admin/Students';
 import AdminCourseDetail from './pages/admin/CourseDetail';
 import AdminSessionDetail from './pages/admin/SessionDetail';
+import SuspiciousAttendance from './pages/admin/SuspiciousAttendance';
+import StudentAudit from './pages/admin/StudentAudit';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -126,6 +128,16 @@ function App() {
             <Route path="/admin/session/:id" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminSessionDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/suspicious" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <SuspiciousAttendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/audit/:studentId" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <StudentAudit />
               </ProtectedRoute>
             } />
 

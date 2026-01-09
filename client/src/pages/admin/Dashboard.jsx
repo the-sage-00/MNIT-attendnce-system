@@ -98,6 +98,21 @@ const AdminDashboard = () => {
         setProcessingId(null);
     };
 
+    const handlePendingUser = async (id, action, userData) => {
+        setProcessingId(id);
+        try {
+            await axios.put(`${API_URL}/admin/pending-users/${id}`,
+                { action, ...userData },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`User ${action}d successfully`);
+            fetchData();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Action failed');
+        }
+        setProcessingId(null);
+    };
+
     const handleCardClick = async (type) => {
         const headers = { Authorization: `Bearer ${token}` };
         try {
@@ -628,8 +643,20 @@ const AdminDashboard = () => {
                                                         <span className="approval-role">{user.role}</span>
                                                     </div>
                                                     <div className="approval-actions">
-                                                        <button className="btn-approve">✓ Approve</button>
-                                                        <button className="btn-reject">✕</button>
+                                                        <button
+                                                            className="btn-approve"
+                                                            onClick={() => handlePendingUser(user._id, 'approve', { role: user.role, branch: user.branch, year: user.year })}
+                                                            disabled={processingId === user._id}
+                                                        >
+                                                            {processingId === user._id ? '...' : '✓ Approve'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handlePendingUser(user._id, 'reject')}
+                                                            disabled={processingId === user._id}
+                                                        >
+                                                            ✕
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))
@@ -685,7 +712,11 @@ const AdminDashboard = () => {
                                         <span className="manage-arrow">→</span>
                                     </div>
 
-                                    <div className="manage-card">
+                                    <div
+                                        className="manage-card"
+                                        onClick={() => navigate('/admin/suspicious')}
+                                        style={{ cursor: 'pointer' }}
+                                    >
                                         <div className="manage-icon">🔒</div>
                                         <div className="manage-info">
                                             <h3>Security Logs</h3>
